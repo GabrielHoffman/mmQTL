@@ -52,8 +52,7 @@ make_plot = function( ensGene, window = 5e5, ord=1, non_coding=FALSE ){
 	# eQTL fine mapping
 	# df_fm = df_finemap[(Gene == ensGene) & (eQTL_order == ord),]
 	#, color=as.character(eQTL_order)
-	fig_finemap_gene = ggplot(df_fm, aes(Position, PIP, size=PIP^2)) + geom_point() + ggtitle("Finemap - gene") + ylab("Posterior") + ylim(0,1)  + scale_x_continuous(expand=c(0,0)) + scale_size_continuous(limits = c(0, 1), range(0.1, 6))
-
+	fig_finemap_gene = ggplot(df_fm, aes(Position, PIP, size=PIP^2)) + geom_point() + ggtitle("Finemap - gene") + ylab("Posterior") + ylim(0,1) + scale_x_continuous(expand=c(0,0)) + scale_size_continuous(limits = c(0, 1), range(0.1, 6))
 
 	# CAUSALdb
 	# c('OT294', 'OT344', 'OT311', 'GA553', 'OT310')

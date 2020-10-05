@@ -6,6 +6,8 @@
 # Alz fine map
 # https://www.medrxiv.org/content/10.1101/2020.01.22.20018424v1.full.pdf
 
+# ml udunits proj gdal geos
+
 library(data.table)
 library(ggplot2)
 library(ggrepel)
@@ -15,16 +17,24 @@ library(GenomicFeatures)
 library(dplyr)
 library(knitr)
 library(kableExtra)
+library(decorate)
 library(MeSH.db)
 
 source("./make_plots.R")
 source("./plot_genes.R")
  # make_plot( ensGene, ord=ord ) 
 
+
+# plotEnsGenes_gg( EnsDb.Hsapiens.v75, 18565680, 19565680, "chr6", splice_variants=FALSE, non_coding=FALSE) 
+
 # Read eQTL data
 ################
 
-folder = "/Users/gabrielhoffman/Downloads/MMQTL_eQTL_signal_and_finemapping_result/"
+if( system("echo $HOSTNAME", intern=TRUE) == "glia.local"){
+	folder = "/Users/gabrielhoffman/Downloads/MMQTL_eQTL_signal_and_finemapping_result/"
+}else{
+	folder = "/sc/arion/projects/CommonMind/hoffman/MMQTL/MMQTL_eQTL_signal_and_finemapping_result/"
+}
 
 df_snp = fread( paste0(folder, 'variants_position_from_MMQTL_meta-eQTL.tsv.gz') )
 colnames(df_snp) = c("ID", "Chr", "Position", "REF", "ALT")
@@ -67,7 +77,12 @@ setkey(df_finemap, Position)
 ###############
 # /Users/gabrielhoffman/workspace/scripts/compositeQTL/causaDB.R
 
-file = "/Users/gabrielhoffman/work/eQTL/resources/causaldb/credible_set/credible_set/causalDB.RDS"
+if( system("echo $HOSTNAME", intern=TRUE) == "glia.local"){
+	file = "/Users/gabrielhoffman/work/eQTL/resources/causaldb/credible_set/credible_set/causalDB.RDS"
+}else{
+	file = "/sc/arion/projects/psychencode/resources/causaldb/credible_set/causalDB.RDS"
+}
+
 causalDB = readRDS( file )
 
 # find_study( causalDB, "Schizo")
@@ -109,14 +124,24 @@ get_credible_set = function(causalDB, studyID, gr){
 # read gene models
 ##################
 
-gff_collapse = "/Users/gabrielhoffman/work/eQTL/resources/gene_models/ensembl_collapse/EnsDb.Hsapiens.v75.merged.gff3"
+if( system("echo $HOSTNAME", intern=TRUE) == "glia.local"){
+	gff_collapse = "/Users/gabrielhoffman/work/eQTL/resources/gene_models/ensembl_collapse/EnsDb.Hsapiens.v75.merged.gff3"
+}else{
+	gff_collapse = "/sc/arion/projects/psychencode/resources/gene_models/ensembl_collapse/EnsDb.Hsapiens.v75.merged.gff3"
+}
+
 db.ensdb.v75 = makeTxDbFromGFF( gff_collapse )
 
 
 # Read Recombination rate map
 ##############################
-# file = "/sc/arion/projects/psychencode/resources/genetic_map/from_locuszoom/recombRate.tsv.gz"
-file = "/Users/gabrielhoffman/work/eQTL/resources/genetic_map/from_locuszoom/recombRate.tsv.gz"
+
+if( system("echo $HOSTNAME", intern=TRUE) == "glia.local"){
+	file = "/Users/gabrielhoffman/work/eQTL/resources/genetic_map/from_locuszoom/recombRate.tsv.gz"
+}else{
+	file = "/sc/arion/projects/psychencode/resources/genetic_map/from_locuszoom/recombRate.tsv.gz"
+}
+
 df_recomb = fread(file)
 
 # intersect MMQTL with CAUSALdb
@@ -141,7 +166,7 @@ df_merge$Symbol = mapIds(org.Hs.eg.db,
 
 
 
-dim(df_merge[PIP.prod > 0.1,])
+dim(df_merge[PIP.prod > 0.05,])
 # sort(unique(df_merge[PIP.prod > 0.1,]$Trait))
 
 
@@ -168,24 +193,24 @@ df_merge$CATEGORY[is.na(df_merge$CATEGORY)] = "Other"
 # df_merge[273,]
 
 # neuropsych traits
-phen = c('Alz',
-'Cognitive',
-'Drinks' ,
-'Education',
-'Intelligence',
-'Lamb',
-'sclerosis',
-'euroticism',
-'sexual',
-'memory',
-'Schiz',
-'Worrier')
-reg = paste(phen, collapse="|")
-cutoff = 0.01
-outfile = "causal_coloc.html"
+# phen = c('Alz',
+# 'Cognitive',
+# 'Drinks' ,
+# 'Education',
+# 'Intelligence',
+# 'Lamb',
+# 'sclerosis',
+# 'euroticism',
+# 'sexual',
+# 'memory',
+# 'Schiz',
+# 'Worrier')
+# reg = paste(phen, collapse="|")
+# cutoff = 0.01
+# outfile = "causal_coloc.html"
 
 reg = ".*"
-cutoff = 0.1
+cutoff = 0.01
 outfile = "causal_coloc_all.html"
 
 df_show = df_merge[PIP.prod > cutoff,][grep(reg, Trait),c('CATEGORY', 'Trait','meta_id','Sample_size', 'Consortium/author', 'PMID', 'Year','PIP.prod', 'eQTL_order', 'Gene','Symbol')]
@@ -200,7 +225,8 @@ for( ensGene in unique(df_show$Gene) ){
 
 	for(ord in df_show[Gene == ensGene,unique(eQTL_order)] ){
 
-		file = paste0("figures/", ensGene, "_", ord, ".pdf")
+		# file = paste0("figures/", ensGene, "_", ord, ".pdf")
+		file = paste0("/sc/arion/projects/CommonMind/hoffman/MMQTL/figures/", ensGene, "_", ord, ".pdf")		
 
 		ggsave(file, make_plot( ensGene, ord=ord ) )
 	}
@@ -302,10 +328,11 @@ fig_THOC7@mutable['Genes'] = FALSE
 ggsave(file = "figures/example_THOC7.pdf", fig_THOC7)
 
 
+# THOC7
+# http://genome.ucsc.edu/cgi-bin/hgTracks?db=hg19&lastVirtModeType=default&lastVirtModeExtraState=&virtModeType=default&virtMode=0&nonVirtPosition=&position=chr3%3A63842598%2D63842660&hgsid=912394169_cFHqfAeeMj1FiG8bUqgEcpofXATB
 
-
-
-
+# ZNF823
+# http://genome.ucsc.edu/cgi-bin/hgTracks?db=hg38&lastVirtModeType=default&lastVirtModeExtraState=&virtModeType=default&virtMode=0&nonVirtPosition=&position=chr19%3A11738636%2D11739205&hgsid=912424373_ZF4DWaMyOsuZrocMHs0reYmQysir
 
 
 
