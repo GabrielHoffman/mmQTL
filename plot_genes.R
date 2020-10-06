@@ -145,7 +145,7 @@ plotEnsGenes_gg = function(ensdb, minRange, maxRange, chromosome, splice_variant
 		fig = ggplot() + scale_x_continuous(label=comma, expand=c(0,0), limits=c(minRange, maxRange))
 	}
 
-	fig + theme_bw() + theme(legend.position = "none", axis.title.y=element_blank(), axis.ticks.y=element_blank(), axis.line.y=element_blank(), panel.grid=element_blank(), axis.text.y=element_blank(),panel.background = element_blank(), strip.background = element_blank(), rect = element_rect(fill="white", linetype=0))
+	fig + theme_bw() + theme(legend.position = "none", axis.title=element_blank(), axis.ticks.y=element_blank(), axis.line.y=element_blank(), panel.grid=element_blank(), axis.text.y=element_blank(),panel.background = element_blank(), strip.background = element_blank(), rect = element_rect(fill="white", linetype=0))
 }
 
 # chr20 47223127-48223127

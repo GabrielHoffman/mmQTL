@@ -334,6 +334,52 @@ ggsave(file = "figures/example_THOC7.pdf", fig_THOC7)
 # ZNF823
 # http://genome.ucsc.edu/cgi-bin/hgTracks?db=hg38&lastVirtModeType=default&lastVirtModeExtraState=&virtModeType=default&virtMode=0&nonVirtPosition=&position=chr19%3A11738636%2D11739205&hgsid=912424373_ZF4DWaMyOsuZrocMHs0reYmQysir
 
+# disrupts signal in fetal brain
+https://hb.flatironinstitute.org/deepsea/jobs/32f5cf41-f21c-4f80-833c-6778a706318e
+
+https://genome.ucsc.edu/cgi-bin/hgTracks?db=hg38&lastVirtModeType=default&lastVirtModeExtraState=&virtModeType=default&virtMode=0&nonVirtPosition=&position=chr19%3A11731351%2D11746701&hgsid=912457981_vRgc0PjNmfRa16szbEvzWRRg3d0S
+
+# Distrupt high information site in REST (aka NRSF) binding sites
+# Regulome db
+
+
+
+
+
+# ZNF823 brain ChIP-seq
+library(rtracklayer)
+library(ENCODExplorer)
+
+query_results <- queryEncode(organism = "Homo sapiens", 
+                      file_accession = "ENCFF625DED", file_format = "bigWig",
+                      fixed = TRUE)
+
+downloadEncode( query_results, dir="~/Downloads" )
+
+library(rtracklayer)
+library(ggplot2)
+library(ggbio)
+library(scales)
+
+file = "/Users/gabrielhoffman/Downloads/ENCFF625DED.bigWig"
+
+gr = import(file)
+
+window = 1000
+wh = GRanges("chr19", IRanges(11849736 - window, 11849736 + window))
+
+
+gr2 = subsetByOverlaps(gr, wh, ignore.strand = TRUE)
+
+df = as.data.frame(gr2)
+
+ggplot(df, aes(start, score)) + geom_line() + scale_x_continuous(label = comma, expand=c(0,0), limits=c(start(wh), end(wh))) + theme_bw()
+
+
+
+
+
+
 
 
 
