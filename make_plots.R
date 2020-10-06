@@ -60,9 +60,10 @@ make_plot = function( ensGene, window = 5e5, ord=1, non_coding=FALSE ){
 	setorder(df_pip, Trait, -FINEMAP)
 
 	df_coloc = merge(df_fm, df_pip, by.x="Position", by.y="BP")
+	df_coloc = df_coloc[FINEMAP*PIP > 0.01,]
 
 	if( nrow(df_coloc) > 0){
-		fig_causal = ggplot(df_coloc[FINEMAP*PIP > 0.01,], aes(Position, FINEMAP, color=Trait, size=FINEMAP^2)) + geom_point() + ylim(0,1) + scale_x_continuous(expand=c(0,0)) + ylab("Posterior") + geom_text_repel(data=subset(df_coloc, !duplicated(Trait)), aes(label=Trait), size=3, force=10) + scale_size_continuous(limits = c(0, 1), range(0.1, 6))
+		fig_causal = ggplot(df_coloc, aes(Position, FINEMAP, color=Trait, size=FINEMAP^2)) + geom_point() + ylim(0,1) + scale_x_continuous(expand=c(0,0)) + ylab("Posterior") + geom_text_repel(data=subset(df_coloc, !duplicated(Trait)), aes(label=Trait), size=3, force=10) + scale_size_continuous(limits = c(0, 1), range(0.1, 6))
 	}else{
 		fig_causal = ggplot() + scale_x_continuous(expand=c(0,0), limits=c(start(wh), end(wh)))
 	}
@@ -87,8 +88,8 @@ make_plot = function( ensGene, window = 5e5, ord=1, non_coding=FALSE ){
      
 	fig_genebody = plotEnsGenes_gg( EnsDb.Hsapiens.v75, start(wh), end(wh), seqnames(wh), splice_variants=FALSE, non_coding=non_coding) 
 	
-	# tracks(fig_eqtl, fig_gene)
-
+	# tracks(fig_eqtl, fig_genebody)
+	# browser()
 	# Combine plots
 	fig_track = tracks( "eQTL"		= fig_eqtl, 
 		"eQTL\nFine map"	= fig_finemap_gene,
