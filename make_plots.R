@@ -60,20 +60,22 @@ make_plot = function( ensGene, window = 5e5, ord=1, non_coding=FALSE ){
 	setorder(df_pip, Trait, -FINEMAP)
 
 	df_coloc = merge(df_fm, df_pip, by.x="Position", by.y="BP")
-	df_coloc = df_coloc[FINEMAP*PIP > 0.01,]
+	df_select = df_coloc[, data.frame(max=max(FINEMAP*PIP)),by='meta_id']
+
+	df_coloc = df_coloc[meta_id %in% df_select[max>0.01,meta_id],]
 
 	if( nrow(df_coloc) > 0){
-		fig_causal = ggplot(df_coloc, aes(Position, FINEMAP, color=Trait, size=FINEMAP^2)) + geom_point() + ylim(0,1) + scale_x_continuous(expand=c(0,0)) + ylab("Posterior") + geom_text_repel(data=subset(df_coloc, !duplicated(Trait)), aes(label=Trait), size=3, force=10) + scale_size_continuous(limits = c(0, 1), range(0.1, 6))
+		fig_causal = ggplot(df_coloc, aes(Position, FINEMAP, color=Trait, size=FINEMAP^2)) + geom_point() + ylim(0,1) + scale_x_continuous(expand=c(0,0)) + ylab("Posterior") + geom_text_repel(data=subset(df_coloc, !duplicated(Trait)), aes(label=Trait), size=3, force=10) + scale_size_continuous(limits = c(0, 1), range(0.1, 6)) + scale_color_brewer(palette="Dark2") 
 	}else{
 		fig_causal = ggplot() + scale_x_continuous(expand=c(0,0), limits=c(start(wh), end(wh)))
 	}
 
 	# plot coloc
 	# df_coloc = merge(df_fm, df_pip, by.x="Position", by.y="BP")
-
+	df_coloc = df_coloc[FINEMAP*PIP>0,]
 	if( nrow(df_coloc) > 0){
 		ymax = max(df_coloc[,FINEMAP*PIP])
-		fig_coloc = ggplot(df_coloc, aes(Position, FINEMAP*PIP, color=Trait, size=(FINEMAP*PIP)^2)) + geom_point() + scale_x_continuous(expand=c(0,0)) + ylab("Posterior") + scale_size_continuous(limits = c(0, 1), range(0.1, 6)) + ylim(0,1) #+ geom_text_repel(data=subset(df_coloc, !duplicated(Trait)), aes(label=Trait), size=4, force=10) 
+		fig_coloc = ggplot(df_coloc[FINEMAP*PIP>0,], aes(Position, FINEMAP*PIP, color=Trait, size=(FINEMAP*PIP)^2)) + geom_point() + scale_x_continuous(expand=c(0,0)) + ylab("Posterior") + scale_size_continuous(limits = c(0, 1), range(0.1, 6)) + ylim(0,1) + scale_color_brewer(palette="Dark2")  #+ geom_text_repel(data=subset(df_coloc, !duplicated(Trait)), aes(label=Trait), size=4, force=10) 
 	}else{	
 		fig_coloc = ggplot() + scale_x_continuous(expand=c(0,0), limits=c(start(wh), end(wh)))
 	}
@@ -94,7 +96,7 @@ make_plot = function( ensGene, window = 5e5, ord=1, non_coding=FALSE ){
 	fig_track = tracks( "eQTL"		= fig_eqtl, 
 		"eQTL\nFine map"	= fig_finemap_gene,
 		"GWAS\nFine map" 	= fig_causal,
-		"Colocalize"		= fig_coloc,
+		"Shared\ncandidates"		= fig_coloc,
 		"Genes"				= fig_genebody,
 		xlim = wh,
 		padding = unit(-.8, "lines"),

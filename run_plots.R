@@ -6,7 +6,8 @@
 # Alz fine map
 # https://www.medrxiv.org/content/10.1101/2020.01.22.20018424v1.full.pdf
 
-# ml udunits proj gdal geos
+# ml udunits proj gdal geos pandoc; cd build2/mmQTL/
+
 
 library(data.table)
 library(ggplot2)
@@ -26,6 +27,8 @@ source("./plot_genes.R")
 
 
 # plotEnsGenes_gg( EnsDb.Hsapiens.v75, 18565680, 19565680, "chr6", splice_variants=FALSE, non_coding=FALSE) 
+# plotEnsGenes_gg( EnsDb.Hsapiens.v75, 193490008,194490008, "chr3", splice_variants=FALSE, non_coding=FALSE) 
+
 
 # Read eQTL data
 ################
@@ -144,6 +147,18 @@ if( system("echo $HOSTNAME", intern=TRUE) == "glia.local"){
 
 df_recomb = fread(file)
 
+
+# single cell expression
+########################
+
+if( system("echo $HOSTNAME", intern=TRUE) == "glia.local"){
+	file = "/Users/gabrielhoffman/work/eQTL/resources/singlecell/lake_habib_darmanis_2018.tsv"
+}else{
+	file = "/sc/hydra/projects/roussp01a/mads_atacseq/data/cellSpecificGenes/lake_habib_darmanis_2018.tsv"
+}
+df_sc = fread( file )
+
+
 # intersect MMQTL with CAUSALdb
 ###############################
 
@@ -213,11 +228,14 @@ reg = ".*"
 cutoff = 0.01
 outfile = "causal_coloc_all.html"
 
-df_show = df_merge[PIP.prod > cutoff,][grep(reg, Trait),c('CATEGORY', 'Trait','meta_id','Sample_size', 'Consortium/author', 'PMID', 'Year','PIP.prod', 'eQTL_order', 'Gene','Symbol')]
+df_show = df_merge[PIP.prod > cutoff,][grep(reg, Trait),c('CATEGORY', 'Trait','meta_id','Sample_size', 'Consortium/author', 'PMID', 'Year', 'Variant','PIP.prod', 'eQTL_order', 'Gene','Symbol')]
 
 df_show = df_show[,.SD[which.max(PIP.prod),], by=c('Gene', 'Trait')]
 
-df_show = df_show[order(CATEGORY, Trait, PIP.prod, decreasing=TRUE),][,c('CATEGORY', 'Trait','meta_id','Sample_size', 'Consortium/author', 'PMID', 'Year','PIP.prod', 'eQTL_order','Gene','Symbol')]
+df_show = df_show[order(CATEGORY, Trait, PIP.prod, decreasing=TRUE),][,c('CATEGORY', 'Trait','meta_id','Sample_size', 'Consortium/author', 'PMID', 'Year','Variant','PIP.prod', 'eQTL_order','Gene','Symbol')]
+
+table(df_show$Symbol %in% df_sc$gene)
+df_show = merge(df_show, unique(df_sc[,c("gene", "source", "cluster")]), by.x="Symbol", by.y="gene", all.x=TRUE)
 
 # Write images to pdf
 for( ensGene in unique(df_show$Gene) ){
@@ -234,13 +252,19 @@ for( ensGene in unique(df_show$Gene) ){
 
 df_show[,url := paste0('https://hoffmg01.u.hpc.mssm.edu/mmqtl/',Gene, '_', eQTL_order,'.pdf')]
 df_show[,url_pmid := paste0('https://pubmed.ncbi.nlm.nih.gov/', PMID)]
+df_show[,url_rsid := paste0('https://www.ncbi.nlm.nih.gov/snp/', Variant)]
+
 setorder(df_show, CATEGORY, Trait, -PIP.prod)
+
+# save(list=ls(), file="alldata.RDATA")
 
 df_show %>% 
 	mutate(Gene = cell_spec(Gene, "html", link = url, color="blue")) %>%
 	mutate(url = c()) %>%
 	mutate(PMID = cell_spec(PMID, "html", link = url_pmid, color="blue")) %>%
 	mutate(url_pmid = c()) %>%
+	mutate(Variant = cell_spec(Variant, "html", link = url_rsid, color="blue")) %>%
+	mutate(url_rsid = c()) %>%
 	mutate(meta_id = c()) %>%
 	mutate('Coloc prob' = format(PIP.prod, digits=3)) %>%
 	mutate(PIP.prod = c()) %>%
@@ -248,6 +272,7 @@ df_show %>%
   	kable_styling(full_width = FALSE, bootstrap_options = c("hover", "condensed")) %>%
   	save_kable(outfile)
 
+# saveRDS(df_show, file="df_show.RDS")
 
 
 system("rsync -avzP figures/*.pdf sklar1:/sc/arion/projects/CommonMind/hoffman/MMQTL/figures")
@@ -342,8 +367,8 @@ https://genome.ucsc.edu/cgi-bin/hgTracks?db=hg38&lastVirtModeType=default&lastVi
 # Distrupt high information site in REST (aka NRSF) binding sites
 # Regulome db
 
-
-
+# CACHD1
+https://www.jneurosci.org/content/38/43/9186
 
 
 # ZNF823 brain ChIP-seq
