@@ -5,6 +5,21 @@
 
 library(scales)
 
+# adapted from decorate::get_exon_coords(), but return gene_id here
+get_exon_coords = function (ensdb, query, biotypes = c("protein_coding")){
+    if (!is(ensdb, "EnsDb")) {
+        stop("ensdb must be an ENSEMBL databsed of type EnsDb")
+    }
+    gr_exon = exonsByOverlaps(ensdb, query, columns = c("exon_seq_start", 
+        "exon_seq_end", "symbol", "gene_biotype", "tx_seq_start", 
+        "tx_seq_end", "tx_cds_seq_start", "tx_cds_seq_end", 'gene_id'))
+    if (!is.na(biotypes)) {
+        gr_exon = gr_exon[gr_exon$gene_biotype %in% biotypes]
+    }
+    gr_exon
+}
+
+
 #' Plot ENSEMBL genes
 #' 
 #' Plot ENSEMBL genes in region
@@ -40,7 +55,7 @@ library(scales)
 #' @import grid
 #' @importFrom data.table data.table
 #' @importFrom grDevices pdf dev.off
-plotEnsGenes_gg = function(ensdb, minRange, maxRange, chromosome, splice_variants = FALSE, non_coding = FALSE, arrow.size=0.05){
+plotEnsGenes_gg = function(ensdb, minRange, maxRange, chromosome, splice_variants = FALSE, non_coding = FALSE, arrow.size=0.05, ensGene = NULL){
 
   	# vp = viewport(x = 0, y = 0.95, just = c("left", "top"))
   	# vp$xscale <- c(minRange, maxRange)
@@ -51,13 +66,28 @@ plotEnsGenes_gg = function(ensdb, minRange, maxRange, chromosome, splice_variant
 
 	gr = GRanges(gsub( "^chr", "", chromosome), IRanges(minRange, maxRange))
 
+	if( non_coding ){
+		gr_exons = get_exon_coords( ensdb, gr, NA )
+	}else{
+		gr_exons = decorate::get_exon_coords( ensdb, gr, 'protein_coding' )
+
+		# get locus for ensGene (even if it is non-coding)
+		if( !is.null(ensGene) ){
+			# get all loci
+			gr_exons_focus = get_exon_coords( ensdb, gr, NA )
+
+			# add locus of focus to other loci
+			gr_exons_focus = gr_exons_focus[gr_exons_focus$gene_id == ensGene]
+			gr_exons = unique(c(gr_exons, gr_exons_focus))
+		}
+	}
+
     # get gene coordinates
     if( non_coding ){
         biotype = NA
     }else{
         biotype = c("protein_coding")
     }
-	gr_exons = decorate::get_exon_coords( ensdb, gr, biotype )
 
     if( length(gr_exons) > 0){
    
@@ -117,12 +147,12 @@ plotEnsGenes_gg = function(ensdb, minRange, maxRange, chromosome, splice_variant
 	t$txMax = ifelse( t$strand == "+", t$txEnd, t$txStart )
 
 	plot_lines_no <- 1
-	# browser()
+
     if (dim(t)[1] > 1) {
         for(i in 2:dim(t)[1]){
             # gene_name_width <- Range/map_len * convertWidth(grobWidth(textGrob(paste(t[1,"gene_name"], "   "), gp = gpar(fontsize = 7))),
                 # "npc", valueOnly = TRUE)
-            gene_name_width = width(gr) / 8
+            gene_name_width = width(gr) / 10
             for (j in 1:plot_lines_no) {
                 if (max(t[1:(i - 1), ][t[, "plot_line"] == j, "txEnd"], na.rm = TRUE) < t[i, "txStart"] - gene_name_width*2) {
                   t[i, "plot_line"] <- j
@@ -132,6 +162,8 @@ plotEnsGenes_gg = function(ensdb, minRange, maxRange, chromosome, splice_variant
             if (!t[i, "plot_line"])
                 t[i, "plot_line"] <- plot_lines_no <- plot_lines_no + 1
         }
+
+       	t$plot_line = max(t$plot_line) + 1 - t$plot_line
     }   
 
     if( nrow(t) > 0 ){
@@ -140,7 +172,7 @@ plotEnsGenes_gg = function(ensdb, minRange, maxRange, chromosome, splice_variant
 		ylim = c(min(t$plot_line), max(t$plot_line))
 		d = ylim[2] - ylim[1]
 
-		fig = ggplot(t, aes(x=txMin, xend=txMax, y=plot_line, yend=plot_line, color = ifelse(biotype=='protein_coding', '1', '2'), label=symbol, hjust=ifelse(strand=='+', 1, 0))) + geom_segment( arrow = arrow(length = unit(arrow.size, "npc"), end="last",type = "open")) + ylim(ylim[1] - 0.15*d, ylim[2] + 0.1*d) + geom_text(size=2.2) + scale_x_continuous(label=comma, expand=c(0,0), limits=c(minRange, maxRange)) + scale_color_manual(values=c("navy", "grey40")) 
+		fig = ggplot(t, aes(x=txMin, xend=txMax, y=plot_line, yend=plot_line, color = ifelse(biotype=='protein_coding', '1', '2'), label=paste0('  ',symbol, '  '), hjust=ifelse(strand=='+', 1, 0))) + geom_segment( arrow = arrow(length = unit(arrow.size, "npc"), end="last",type = "open")) + ylim(ylim[1] - 0.3*d, ylim[2] + 0.1*d) + geom_text(size=2.2) + scale_x_continuous(label=comma, expand=c(0,0), limits=c(minRange, maxRange)) + scale_color_manual(values=c("navy", "grey40")) 
 	}else{
 		fig = ggplot() + scale_x_continuous(label=comma, expand=c(0,0), limits=c(minRange, maxRange))
 	}
