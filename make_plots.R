@@ -109,9 +109,9 @@ make_plot = function( ensGene, window = 5e5, ord=1, non_coding=FALSE, showCondit
 		df_coloc[,prob.prod := FINEMAP*PIP,]
 		setorder(df_coloc, Trait, -prob.prod)
 		ymax = max(df_coloc[,prob.prod])
-		fig_coloc = ggplot(df_coloc[prob.prod>0,], aes(Position, FINEMAP*PIP, color=Trait, size=prob.prod^2)) + geom_point() + scale_x_continuous(expand=c(0,0)) + ylab("Posterior") + scale_size_continuous(limits = c(0, 1), range(0.1, 6)) + ylim(0,1) + scale_color_manual(values = cols) + geom_text_repel(data=subset(df_coloc[prob.prod>0,], !duplicated(Trait)), aes(label=Trait), size=3, force=1, nudge_y = .1, nudge_x=window/2, hjust=0)
+		fig_coloc = ggplot(df_coloc[prob.prod>0,], aes(Position, FINEMAP*PIP, color=Trait, size=prob.prod^2)) + geom_point() + scale_x_continuous(expand=c(0,0)) + ylab("CLPP") + scale_size_continuous(limits = c(0, 1), range(0.1, 6)) + ylim(0,1) + scale_color_manual(values = cols) + geom_text_repel(data=subset(df_coloc[prob.prod>0,], !duplicated(Trait)), aes(label=Trait), size=3, force=1, nudge_y = .1, nudge_x=window/2, hjust=0)
 	}else{	
-		fig_coloc = ggplot() + scale_x_continuous(expand=c(0,0), limits=c(start(wh), end(wh))) + ylim(0,1) + ylab("Posterior")
+		fig_coloc = ggplot() + scale_x_continuous(expand=c(0,0), limits=c(start(wh), end(wh))) + ylim(0,1) + ylab("CLPP")
 	}
 
 	# Gene models     

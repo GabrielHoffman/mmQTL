@@ -63,8 +63,8 @@ df_eqtl = merge(df_eqtl, df_snp, by.x="Variant", by.y="ID")
 setkey(df_eqtl, Position)
 gc()
 
-# df_finemap = fread( paste0(folder, 'merge_MMQTL_eGenes_fine-mapping.tsv.gz') )
-df_finemap = fread( paste0(folder, 'merge_MMQTL_eGenes_fine-mapping_random_effect.tsv.gz') )
+df_finemap = fread( paste0(folder, 'merge_MMQTL_eGenes_fine-mapping.tsv.gz') )
+# df_finemap = fread( paste0(folder, 'merge_MMQTL_eGenes_fine-mapping_random_effect.tsv.gz') )
 df_finemap[,Chr := c()]
 colnames(df_finemap)[4] = "PIP"
 
@@ -98,6 +98,8 @@ setkey(causalDB[['meta_info']], "ID")
 find_study = function(causalDB, phenotypeText){
 	causalDB[['meta_info']][grep(phenotypeText, causalDB[['meta_info']][['MeSH_term']]),]
 }
+
+
 
 # find_study( causalDB, "Alz")
 # find_study( causalDB, "Park")
@@ -170,7 +172,7 @@ df_recomb = fread(file)
 if( system("echo $HOSTNAME", intern=TRUE) == "glia.local"){
 	file = "/Users/gabrielhoffman/work/eQTL/resources/singlecell/lake_habib_darmanis_2018.tsv"
 }else{
-	file = "/sc/hydra/projects/roussp01a/mads_atacseq/data/cellSpecificGenes/lake_habib_darmanis_2018.tsv"
+	file = "/sc/arion/projects/roussp01a/mads_atacseq/data/cellSpecificGenes/lake_habib_darmanis_2018.tsv"
 }
 df_sc = fread( file )
 
@@ -289,7 +291,8 @@ df_show = merge(df_show, df_sc_unique, by.x="Symbol", by.y="gene", all.x=TRUE)
 
 df_show$clusters[is.na(df_show$clusters)] = ''
 
-sdf
+asdfasdfasdf
+
 
 # Write images to pdf
 for( ensGene in unique(df_show$Gene) ){
@@ -340,6 +343,8 @@ df_show[,url_gene := paste0('https://grch37.ensembl.org/Homo_sapiens/Gene/Summar
 i = grep("Nealelab", df_show$PMID)
 df_show$url_pmid[i] = "http://www.nealelab.is/uk-biobank"
 
+# saveRDS(df_show, file="df_show.RDS")
+
 # save(list=ls(), file="alldata.RDATA")
 
 df_html = df_show %>% 
@@ -378,46 +383,334 @@ for( CAT in unique(df_html$Category)){
 
 
 
+nrow(df_show)
+length(table(df_show$Trait))
+length(table(df_show$Variant))
 
-# saveRDS(df_show, file="df_show.RDS")
-
+# 
 
 system("rsync -avzP figures/*.pdf sklar1:/sc/arion/projects/CommonMind/hoffman/MMQTL/figures")
 
 system("rsync -avzP co_finemap_*.html sklar1:/sc/arion/projects/CommonMind/hoffman/MMQTL/figures")
 
-# https://hoffmg01.u.hpc.mssm.edu/mmqtl/causal_coloc.html
-https://hoffmg01.u.hpc.mssm.edu/mmqtl/causal_coloc_all.html
-
-
 # I integrated your finemappwing with GWAS finemapping from CAUSALdb (http://mulinlab.org/causaldb) to identify gene/trait pairs that share candidate causal variants.  Here is a list of the top associations with neuropsych traits: https://hoffmg01.u.hpc.mssm.edu/mmqtl/causal_coloc.html
 # You can click the gene names for a detailed plot.  I am working on other traits too.  Are there any other GWAS finemapping datasets you want to add?
 
-Mechanism of variant
-TFBS
-splicing
-CpG
+# Mechanism of variant
+# TFBS
+# splicing
+# CpG
+
+# Add eQTL and GWAS prob
+
+####################
+# FURIN pleiotropy #
+####################
+
+# df_show = readRDS("df_show.RDS")
+
+df = df_show[Symbol=="FURIN",]
+setorder(df, prob.coloc)
+df = df[grep("predict|left|HURT", Trait,invert=TRUE),]
+df$Trait = factor(df$Trait, df$Trait)
+
+fig = ggplot(df, aes(Trait, prob.coloc)) + theme_bw() + geom_bar(stat="identity", fill="navy") + coord_flip() + scale_y_continuous(expand=c(0,0), limits=c(0,1)) + ylab("CLPP") + theme(aspect.ratio=1)
+ggsave(file="FURIN_plieotropy.pdf", fig, height=5, width=5)
 
 
-Add eQTL and GWAS prob
 
-# Load THOC7 example
+
+
+
+
+
+############################
+# Summarize co-finemapping #
+############################
+
+# get MeSH_term
+df2 = merge(df_show, 
+	unique(causalDB[['meta_info']][,c('Trait', 'MeSH_term')]), 
+	by='Trait')
+
+tab = unique(df2[,data.frame(Count = length(unique(Gene))), by=c('CATEGORY', 'MeSH_term')])
+tab$CATEGORY = factor(tab$CATEGORY)
+
+setorder(tab, -CATEGORY, -Count)
+tab$order = 1:nrow(tab)
+
+# Show top result in each catagory
+tab$show = TRUE
+tab$show[-1] = sapply(2:nrow(tab), function(i) tab$CATEGORY[i] != tab$CATEGORY[i-1])
+
+ylim = max(tab$Count)*1.05
+fig = ggplot(tab, aes(order, Count, color=as.character(CATEGORY))) + geom_point() + theme_classic() + theme(aspect.ratio=2, plot.title = element_text(hjust = 0.5), axis.title.y=element_blank(), axis.text.y=element_blank(), axis.ticks.y=element_blank()) + ylab("# genes") + scale_x_continuous(expand=c(.01, 0)) + scale_y_continuous(expand=c(0,0), limits=c(0, ylim)) + geom_label_repel(data=tab[show==TRUE,], aes(order, Count, label=MeSH_term), force=4, nudge_x=10, nudge_y=10, size=2) + coord_flip()
+ggsave(file = "figures/eQTL_GWAS_summary.pdf", fig, height=8, width=7)
+
+
+
+
+# focus on traits
+##################
+
+keepTraits = c(
+Neurotocism = "D000075384",
+Alzheimers = 'D000544',
+Schizophrenia = "D012559",
+'Scz/Bipilar' = "D001523",
+'Age first had sexual intercourse' = 'D003075',
+'Worrier / anxious feelings' = 'D004644',
+'Numeric memory test' = 'D000073219',
+Intellegance = 'D007360',
+Education = "D004522",
+'Amyotrophic lateral sclerosis' = 'D000690',
+'Multiple sclerosis' = 'D009103',
+Alcohol = 'D000428',
+'Anorexia nervosa' = 'D000856',
+Smoking = 'D012907',
+Bipolar = "D001714",
+'Cognitive performance' = 'D003071',
+'Depressive affect subcluster' = 'D000341',
+Depression = 'D003863',
+'Risk-Taking' = 'D012309',
+Irritability = 'D007508',
+'Mood swings' = 'D019964',
+'Number of sexual partners' = 'D012725',
+'Automobile speeding propensity' = 'D001334',
+'Time spent watching television' = 'D013690',
+'Coffee intake' = 'D003069',
+Chronotype = 'D012890'
+)
+
+
+
+outfile = "brain_related_traits.html"
+
+df_html[MeSH_ID %in% keepTraits,c('Category', 'Trait','Sample size', 'Author', 'PMID', 'Year', 'Gene','Symbol', 'Variant','GWAS prob', 'eQTL prob', 'Shared causal prob', 'Shared prob', 'Order', 'Cell type')] %>%
+ 	kable("html", escape = FALSE) %>%
+  	kable_styling(full_width = FALSE, bootstrap_options = c("hover", "condensed")) %>%
+  	save_kable(outfile)
+
+
+
+
+tab = df2[MeSH_ID %in% keepTraits,]
+
+tab$MeSH_term[tab$Trait=='Miserableness (MIS)'] = "Emotions"
+tab$MeSH_term[tab$Trait=='Schizophrenia/Bipolar disorder'] = "Schizophrenia + Bipolar"
+tab$MeSH_term[tab$Trait=='Schizophrenia'] = "Schizophrenia + Bipolar"
+tab$MeSH_term[tab$Trait=='Bipolar Disorder'] = "Schizophrenia + Bipolar"
+tab$MeSH_term[tab$Trait=='Bipolar disorder'] = "Schizophrenia + Bipolar"
+tab$MeSH_term[tab$Trait=='Age first had sexual intercourse'] = "Age first had sexual intercourse"
+tab$MeSH_term[grep('smoke',tab$Trait)] = "Smoking"
+tab$MeSH_term[grep('elevision',tab$Trait)] = "Time spent watching television"
+tab$MeSH_term[grep('speeding',tab$Trait)] = "Risk-Taking"
+tab$MeSH_term[grep('Mood',tab$Trait)] = "Mood swings"
+tab$MeSH_term[grep('Coffee',tab$Trait)] = "Coffee intake"
+
+# tab[grep('isk-',Trait),] 
+# tab[grep('Depression',MeSH_term),] 
+tab[,Label := MeSH_term]
+tab[,MeSH_term := c()]
+
+
+tab[Label=='Affective Disorders, Psychotic',Label:='Depressive affect subcluster']
+
+
+
+write.table( tab, file="Brain_eQTL_GWAS_focus.tsv", sep='\t', quote=FALSE)
+write.table( df2, file="All_eQTL_GWAS.tsv", sep='\t', quote=FALSE)
+
+tab_temp = read.delim("Brain_eQTL_GWAS_focus.tsv", sep="\t", header=TRUE)
+
+# count brain related traits
+nrow(tab_temp)
+length(table(tab_temp$Label))
+length(table(tab_temp$Variant))
+length(table(tab_temp$Gene))
+
+# count all traits
+df2 =  read.delim("All_eQTL_GWAS.tsv", sep="\t", header=TRUE)
+nrow(df2)
+length(table(df2$Trait))
+length(table(df2$Variant))
+length(table(df2$Gene))
+
+
+
+
+
+
+tab2 = tab[,data.frame(Count = length(unique(Gene))), by='Label'] %>% unique
+
+setorder(tab2, Count)
+tab2$Label = factor(tab2$Label, tab2$Label)
+
+ylim = max(tab2$Count)*1.05
+fig = ggplot(tab2, aes(Label, Count, label=Count)) + geom_bar(stat="identity", fill="navy") + coord_flip() + theme_bw() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="none") + scale_y_continuous(expand=c(0,0), limits=c(0, ylim)) + ylab("Genes with CLPP > 0.01") + xlab('') + geom_text(aes(y=Count + .6))
+
+ggsave(file = "figures/Brain_eQTL_GWAS_focus_counts.pdf", fig, height=7, width=7)
+
+
+
+tab3 = tab[MeSH_term %in% tab2$MeSH_term, data.frame(Summary = paste(sort(unique(Trait)), collapse=',')),by='MeSH_term']
+
+
+# subset of candidate causal variants
+#################
+library(cowplot)
+tab4 = tab[grep("Schiz|Multip|Alzh|Affect|Depr|Anor|Lateral", Label),]
+setorder(tab4, Label, -prob.coloc)
+
+tab4$Trait = factor(tab4$Trait, rev(sort(unique(tab4$Trait))))
+
+figList = lapply( unique(tab4$Label), function(x){
+
+	df = tab4[Label==x,]
+	df[,Show := paste(Symbol, Variant, sep=' - ')] 
+	df = df[,c('Show','prob.coloc', 'eQTL_order')][,.SD[which.max(prob.coloc)],by=Show]
+	df$Show = factor(df$Show, rev(df$Show))
+
+	fig = ggplot(df, aes(Show, prob.coloc, fill=as.character(eQTL_order))) + geom_bar(stat="identity") + theme_classic() + coord_flip() + scale_y_continuous(expand=c(0,0), limits=c(0, 1)) + scale_x_discrete(expand=c(0,0)) + ylab("CLPP") + ggtitle(x) + xlab('') + theme( legend.position="none", plot.title = element_text(hjust = 0.5))
+
+	if( x != unique(tab4$Label)[length(unique(tab4$Label))] ){
+			fig = fig + theme(axis.title.x=element_blank(), axis.text.x=element_blank(), axis.ticks.x=element_blank()) 
+	}
+	fig
+})
+
+
+fig = plot_grid( plotlist=figList, ncol=1, align="v", rel_heights=sapply(figList, function(x) nrow(x$data)))
+
+ggsave(file = "figures/identify_Genes.pdf", fig, width=6, height=15)
+
+
+df = tab4[Label=='Schizophrenia + Bipolar',]
+df[,Show := paste(Symbol, Variant, sep=' - ')] 
+df$Trait = gsub("Schizophrenia", "SCZ", df$Trait)
+df$Trait = gsub("Bipolar disorder", "BD", df$Trait)
+df2 = df[,c('Show','prob.coloc', 'eQTL_order')][,.SD[which.max(prob.coloc)],by=Show]
+df2$Show = factor(df2$Show, rev(df2$Show))
+df$Show = factor(df$Show, levels(df2$Show))
+
+fig = ggplot(df, aes(Trait, Show, fill=prob.coloc)) + geom_tile() + theme_classic() + scale_fill_gradient(name="CLLP", low="lightgoldenrodyellow", high="red", limits=c(0, 1)) + ylab("") + theme(aspect.ratio=20/3)
+
+
+ggsave(file = "figures/SCZ_BD_heatmap.pdf", fig, width=6, height=7)
+
+
+
+
+
+
+tab2 = tab[,data.frame(Count = length(unique(Gene)), MeSH_term), by='MeSH_ID']
+# tab2 = unique(tab[,data.frame(Count = length(unique(Gene)), Author=`Consortium/author`, N=Sample_size, Trait=Trait), by='MeSH_term'])
+
+tab2$Trait = factor(tab2$Trait, unique(tab2$Trait[order(tab2$MeSH_term)]))
+
+setorder(tab2, MeSH_ID)
+
+ylim = max(tab2$Count)*1.05
+ggplot(tab2, aes(Trait, Count, fill=MeSH_term)) + geom_bar(stat="identity") + coord_flip() + theme_classic() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="right") + scale_y_continuous(expand=c(0,0), limits=c(0, ylim)) + ylab("Genes with CLPP > 0.01")
+
+
+
+
+
+# # keep
+# idx = grep("Schiz|Alz|scler|eurot|ognativ|euromy|Alcohol|ducation|ntellig|sexual|memory|orrier|xiet", tab$Trait)
+# tab2 = unique(tab[idx,])
+
+
+# # remove
+# idx2 = grep("doctor|Leisure", tab2$Trait, invert=TRUE)
+# tab2 = tab2[idx2,]
+
+# idx2 = grep("21926974|23453885|27046643", tab2$PMID, invert=TRUE)
+# tab2 = tab2[idx2,]
+
+# idx2
+tab2 = tab2[idx2,] = grep("317694|26621|78308|264646|293723", tab2$N, invert=TRUE)
+
+
+tab2 = tab[MeSH_ID %in% keepTraits,] 
+
+tab2 = tab2[Count > 1,]
+
+setorder(tab2, Trait)
+
+ylim = max(tab2$Count)*1.05
+ggplot(tab2, aes(paste(Trait, Author, N), Count, fill=MeSH_ID)) + geom_bar(stat="identity") + coord_flip() + theme_classic() + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5), legend.position="none") + scale_y_continuous(expand=c(0,0), limits=c(0, ylim)) 
+
+
+
+
+
+idx = grep("Schiz", tab$Trait)
+
+tab2 = tab[idx,]
+
+
+
+# df_merge[273,]
+
+# neuropsych traits
+# phen = c('Alz',
+# 'Cognitive',
+# 'Drinks' ,
+	# 'Amyotrophic',
+	# Narcolepsy
+	# Neuromyelitis
+	# Alcohol
+	# Anxiety
+	# Bipolar
+	# Depressi
+	# smoke
+	# CAT = "F"
+
+
+# 'ducation',
+# 'ntelligence',
+# 'sclerosis',
+# 'euroticism',
+# 'sexual',
+# 'memory',
+# 'Schiz',
+# 'Worrier')
+# reg = paste(phen, collapse="|")
+# cutoff = 0.01
+# outfile = "causal_coloc.html"
+
+
+
+# Load THOC7/FURIN example
 ####################
 
 #  /sc/arion/projects/CommonMind/zengb02/finemapping_result_to_Gabriel.tar.gz
 
-folder = "/Users/gabrielhoffman/Downloads/p_value_for_Gabriel/"
+gene = "THOC7"
+
+folder = paste0("/Users/gabrielhoffman/Downloads/p_value_for_Gabriel/", gene,'/')
 
 df_window = lapply( c('1', '7', '13', 'meta'), function(suffix){
 
+	# For THOC
 	file = paste0(folder,ifelse( suffix == "meta", "p_value_Meta", paste0("p_value_", suffix,"_GTEx")))
+	file2 = paste0(folder, "finemapping_result_to_Gabriel/credible_set_GTEx_", suffix)
+
+	# if( suffix == "meta"){
+	# 	file = paste0(folder,"eQTL_signal_in_meta")
+	# 	file2 = paste0(folder,"finemapping_result_in_meta")
+	# }else{
+	# 	file = paste0(folder,"eQTL_signal_in_GTEX_", suffix)	
+	# 	file2 = paste0(folder,"finemapping_result_in_GTEx_", suffix)		
+	# }
 
 	df_ex = fread( file )
 	df_ex$Description = suffix
 	colnames(df_ex) = c("Chr", "Variant", "Position", "p.value", "Description")
 
-	file = paste0(folder, "finemapping_result_to_Gabriel/credible_set_GTEx_", suffix)
-	df_candSet = fread( file )
+	df_candSet = fread( file2 )
 	colnames(df_candSet) = c('Variant', "PIP1", "PIP2")
 	df_ex$inCandSet = "no"
 	df_ex[Variant %in% df_candSet$Variant,inCandSet:="yes"]
@@ -425,6 +718,9 @@ df_window = lapply( c('1', '7', '13', 'meta'), function(suffix){
 })
 df_window = do.call(rbind, df_window)
 
+df_window[,min(p.value), by="Description"]
+
+df_window[,sum(inCandSet=="yes"),by="Description"]
 
 
 
@@ -449,7 +745,7 @@ figList = lapply( levels(df_window$Description), function(dscr){
 
 	count = sum(df_window[Description == dscr,inCandSet=="yes"])
 
-	ggplot(df_window[Description == dscr,], aes(Position, -log10(p.value), color=inCandSet)) + geom_point(size=1) + ggtitle("THOC7") + ylab(bquote(-log[10]~P)) + scale_x_continuous(expand=c(0,0), limits=c(start(wh), end(wh))) + scale_y_continuous(expand=c(0,0), limits=c(0, ymax*1.05), sec.axis = sec_axis(~./(ymax.rate/100), name = "Recombination\nrate [cM/Mb]")) + geom_line(aes(y=rate*(ymax.rate/100)), color="dodgerblue", size=.7) + theme_bw(8) + theme(aspect.ratio=.5, plot.title = element_text(hjust = 0.5)) +  scale_color_manual(values = c("black", "red")) + annotate("text", x=end(wh)- width(wh) / 5.5, y=ymax*0.9, label=paste("95% candidate set:", count), size=3)
+	ggplot(df_window[Description == dscr,], aes(Position, -log10(p.value), color=inCandSet)) + geom_point(size=1) + ggtitle("THOC7") + ylab(bquote(-log[10]~P)) + scale_x_continuous(expand=c(0,0), limits=c(start(wh), end(wh))) + scale_y_continuous(expand=c(0,0), limits=c(0, ymax*1.05), sec.axis = sec_axis(~./(ymax.rate/100), name = "Recombination\nrate [cM/Mb]")) + geom_line(aes(y=rate*(ymax.rate/100)), color="dodgerblue", size=.7) + theme_bw(8) + theme(aspect.ratio=.5, plot.title = element_text(hjust = 0.5)) +  scale_color_manual(values = c("black", "red")) #+ annotate("text", x=end(wh)- width(wh) / 5.5, y=ymax*0.9, label=paste("95% candidate set:", count), size=3)
 })
 
 library(EnsDb.Hsapiens.v75)
@@ -457,9 +753,14 @@ fig_genebody = plotEnsGenes_gg( EnsDb.Hsapiens.v75, start(wh), end(wh), seqnames
 
 fig_main = make_plot( "ENSG00000163634", ord=1, window=window )
 
+# fig_main = make_plot( "ENSG00000140564", ord=1, window=window )
+
+
+
+
 
 # Combine plots
-fig_THOC7 = tracks( "GTEx: 1" 	= figList[[1]],
+fig = tracks( "GTEx: 1" 	= figList[[1]],
 		"GTEx: 7" 	= figList[[2]],
 		"GTEx: 13" 	= figList[[3]],
 		"All" 		= figList[[4]],
@@ -472,32 +773,35 @@ fig_THOC7 = tracks( "GTEx: 1" 	= figList[[1]],
 		label.bg.fill="navy", label.text.color="white",
 		heights=c(1,1,1,1,1, 1,1,.65),
 		theme = theme_bw(8) + theme(legend.position="none",panel.grid.minor = element_blank()),
- 		title="THOC7") 
-fig_THOC7@mutable['Genes'] = FALSE
+ 		title=gene) 
+fig@mutable['Genes'] = FALSE
 
-ggsave(file = "figures/example_THOC7.pdf", fig_THOC7, width=6)
+ggsave(file = "figures/example_THOC7.pdf", fig, width=6)
+# ggsave(file = "figures/example_FURIN.pdf", fig, width=6)
 
 
 # THOC7
 # http://genome.ucsc.edu/cgi-bin/hgTracks?db=hg19&lastVirtModeType=default&lastVirtModeExtraState=&virtModeType=default&virtMode=0&nonVirtPosition=&position=chr3%3A63842598%2D63842660&hgsid=912394169_cFHqfAeeMj1FiG8bUqgEcpofXATB
 
-# ZNF823
+APHB1 - rs117618017
+
+# ZNF823 - rs72986630
 # http://genome.ucsc.edu/cgi-bin/hgTracks?db=hg38&lastVirtModeType=default&lastVirtModeExtraState=&virtModeType=default&virtMode=0&nonVirtPosition=&position=chr19%3A11738636%2D11739205&hgsid=912424373_ZF4DWaMyOsuZrocMHs0reYmQysir
 
 # disrupts signal in fetal brain
-https://hb.flatironinstitute.org/deepsea/jobs/32f5cf41-f21c-4f80-833c-6778a706318e
+# https://hb.flatironinstitute.org/deepsea/jobs/32f5cf41-f21c-4f80-833c-6778a706318e
 
-https://genome.ucsc.edu/cgi-bin/hgTracks?db=hg38&lastVirtModeType=default&lastVirtModeExtraState=&virtModeType=default&virtMode=0&nonVirtPosition=&position=chr19%3A11731351%2D11746701&hgsid=912457981_vRgc0PjNmfRa16szbEvzWRRg3d0S
+# https://genome.ucsc.edu/cgi-bin/hgTracks?db=hg38&lastVirtModeType=default&lastVirtModeExtraState=&virtModeType=default&virtMode=0&nonVirtPosition=&position=chr19%3A11731351%2D11746701&hgsid=912457981_vRgc0PjNmfRa16szbEvzWRRg3d0S
 
 # Distrupt high information site in REST (aka NRSF) binding sites
 # Regulome db
 
 # CACHD1
-https://www.jneurosci.org/content/38/43/9186
+# https://www.jneurosci.org/content/38/43/9186
 
 # PPM1F-AS1
-https://doi.org/10.1016/j.abb.2018.01.001
-http://dx.doi.org/10.1016/j.biopsych.2017.08.013
+# https://doi.org/10.1016/j.abb.2018.01.001
+# http://dx.doi.org/10.1016/j.biopsych.2017.08.013
 
 
 # ZNF823 brain ChIP-seq
