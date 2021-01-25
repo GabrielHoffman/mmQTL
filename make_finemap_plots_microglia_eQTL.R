@@ -19,6 +19,8 @@ library(MeSH.db)
 library(synapser)
 })
 
+# ml proj gdal geos
+# R
 # source("/hpc/users/hoffmg01/build2/mmQTL/make_finemap_plots_microglia_eQTL.R")
 
 src = '/hpc/users/hoffmg01/build2/mmQTL'
@@ -34,6 +36,7 @@ colnames(df_snp) = c("Chr", "Position0", "Position", 'ID')
 df_snp[,Position0 := c()]
 df_snp[,Chr:=gsub("^chr", '', Chr)]
 setkey(df_snp, 'ID')
+gc()
 
 # Read xQTL p-values
 df_eqtl = fread( synGet('syn24182390')$path, header=FALSE )
