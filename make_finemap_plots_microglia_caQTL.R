@@ -21,7 +21,7 @@ library(synapser)
 
 # ml proj gdal geos pandoc
 # R
-# source("/hpc/users/hoffmg01/build2/mmQTL/make_finemap_plots_microglia_eQTL.R")
+# source("/hpc/users/hoffmg01/build2/mmQTL/make_finemap_plots_microglia_caQTL.R")
   
 src = '/hpc/users/hoffmg01/build2/mmQTL'
 
@@ -210,23 +210,23 @@ folder = "microglia/caqtl/figures/"
 dir.create( folder, recursive=TRUE )
 
 # Write images to pdf
-# for( ensGene in unique(df_show$Gene) ){
-# 	message(ensGene)
+for( ensGene in unique(df_show$Gene) ){
+	message(ensGene)
 
-# 	for(ord in df_show[Gene == ensGene,sort(unique(eQTL_order))] ){
+	for(ord in df_show[Gene == ensGene,sort(unique(eQTL_order))] ){
 
-# 		file = paste0(ensGene, "_", ord, ".pdf")
-# 		file = paste0(folder, file)
-# 		# file = paste0("/sc/arion/projects/CommonMind/hoffman/MMQTL/figures/", file)		
-# 		ggsave(file, make_plot( ensGene, ord=ord, window=2e5 ), width=6 )
+		file = paste0(ensGene, "_", ord, ".pdf")
+		file = paste0(folder, file)
+		# file = paste0("/sc/arion/projects/CommonMind/hoffman/MMQTL/figures/", file)		
+		ggsave(file, make_plot( ensGene, ord=ord, window=2e5 ), width=6 )
 
-# 		if( ord > 1 ){
-# 			file = paste0(ensGene, "_", ord, "_showConditional.pdf")
-# 			file = paste0("figures/", file)
-# 			ggsave(file, make_plot( ensGene, ord=ord, window=2e5, showConditional=TRUE ), width=6) 
-# 		}
-# 	}
-# } 
+		if( ord > 1 ){
+			file = paste0(ensGene, "_", ord, "_showConditional.pdf")
+			file = paste0("figures/", file)
+			ggsave(file, make_plot( ensGene, ord=ord, window=2e5, showConditional=TRUE ), width=6) 
+		}
+	}
+} 
 
 
 
