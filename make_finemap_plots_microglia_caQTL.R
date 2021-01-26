@@ -45,6 +45,7 @@ colnames(df_eqtl)[colnames(df_eqtl) == 'caQTL_order'] = 'eQTL_order'
 df_eqtl[,log10.p.value := -1*pnorm(Z_score_random, 0, 1, lower.tail=FALSE, log.p=TRUE) / log(10) - log10(2)]
 df_eqtl[,Z_score_fixed:=c()]
 df_eqtl[,Z_score_random:=c()]
+colnames(df_eqtl)[colnames(df_eqtl)=="Peak"] = "Gene"
 setkey(df_eqtl, "Variant")
 gc()
 
@@ -59,10 +60,25 @@ colnames(df_finemap) = c("Chr", "Gene", "eQTL_order", "Variant", "PIP")
 df_finemap[,Chr := c()]
 setkey(df_finemap, 'Variant')
 
-
-# Merg SNPe locations and fine-mapping
+# Merg SNP locations and fine-mapping
 df_finemap = merge(df_finemap, df_snp, by.x="Variant", by.y="ID")
 setkey(df_finemap, Position)
+
+ensGene = 'Peak_74506'
+
+df_finemap[Gene == ensGene,]
+df_eqtl[Gene == ensGene,]
+
+
+table(unique(df_finemap$Gene) %in% unique(df_eqtl$Gene))
+
+
+
+
+	
+
+
+
 
 # read CAUSALdb 
 ###############
@@ -146,14 +162,17 @@ df_merge = merge(df_merge, causalDB[['meta_info']], by.x="meta_id", by.y="ID")
 df_merge[,PIP.prod := PIP*FINEMAP]
 df_merge = df_merge[order(PIP.prod, decreasing=TRUE),]
 
+df_merge = df_merge[!is.na(PIP.prod),]
+
 # df_merge$Symbol = mapIds(org.Hs.eg.db,
 #                      keys=df_merge$Gene,
 #                      column="SYMBOL",
 #                      keytype="ENSEMBL")
 
-geneInfo = select(EnsDb.Hsapiens.v75, keys=df_merge$Gene, keytype="GENEID", column=c('GENENAME'))
-colnames(geneInfo) = c("Gene", "Symbol")	
-df_merge = merge(df_merge, geneInfo, by="Gene")
+# not needed for caQTLs
+# geneInfo = select(EnsDb.Hsapiens.v75, keys=df_merge$Gene, keytype="GENEID", column=c('GENENAME'))
+# colnames(geneInfo) = c("Gene", "Symbol")	
+# df_merge = merge(df_merge, geneInfo, by="Gene")
 
 
 dim(df_merge[PIP.prod > 0.05,])
@@ -184,23 +203,23 @@ df_show = merge(df_merge,
 reg = ".*"
 cutoff = 0.01
 # df_show[prob.coloc > cutoff,]
-df_show = df_show[ PIP.prod> cutoff,][grep(reg, Trait),c('MeSH_ID','CATEGORY', 'Trait','meta_id','Sample_size', 'Consortium/author', 'PMID', 'Year', 'Variant','PIP','FINEMAP', 'PIP.prod', 'prob.coloc','eQTL_order', 'Gene','Symbol')]
+df_show = df_show[ PIP.prod> cutoff,][grep(reg, Trait),c('MeSH_ID','CATEGORY', 'Trait','meta_id','Sample_size', 'Consortium/author', 'PMID', 'Year', 'Variant','PIP','FINEMAP', 'PIP.prod', 'prob.coloc','eQTL_order', 'Gene')]# ,'Symbol'
 
 
 df_show = df_show[,.SD[which.max(PIP.prod),], by=c('Gene', 'Trait')]
 
-df_show = df_show[order(CATEGORY, Trait, PIP.prod, decreasing=TRUE),][,c('MeSH_ID','CATEGORY', 'Trait','meta_id','Sample_size', 'Consortium/author', 'PMID', 'Year','Variant','PIP','FINEMAP','PIP.prod', 'prob.coloc','eQTL_order','Gene','Symbol')]
-df_show$Symbol[is.na(df_show$Symbol)] = ''
+df_show = df_show[order(CATEGORY, Trait, PIP.prod, decreasing=TRUE),][,c('MeSH_ID','CATEGORY', 'Trait','meta_id','Sample_size', 'Consortium/author', 'PMID', 'Year','Variant','PIP','FINEMAP','PIP.prod', 'prob.coloc','eQTL_order','Gene')]# ,'Symbol'
+# df_show$Symbol[is.na(df_show$Symbol)] = ''
 
-table(df_show$Symbol %in% df_sc$gene)
+# table(df_show$Symbol %in% df_sc$gene)
 
-df_sc_unique = unique(df_sc[,c("gene", "source", "cluster")])
-df_sc_unique[,cluster1 := paste0(cluster, ' (', source, ')')]
-df_sc_unique = df_sc_unique[,data.table(clusters = paste(cluster1, collapse=', ')), by="gene"]
+# df_sc_unique = unique(df_sc[,c("gene", "source", "cluster")])
+# df_sc_unique[,cluster1 := paste0(cluster, ' (', source, ')')]
+# df_sc_unique = df_sc_unique[,data.table(clusters = paste(cluster1, collapse=', ')), by="gene"]
 
-df_show = merge(df_show, df_sc_unique, by.x="Symbol", by.y="gene", all.x=TRUE)
+# df_show = merge(df_show, df_sc_unique, by.x="Symbol", by.y="gene", all.x=TRUE)
 
-df_show$clusters[is.na(df_show$clusters)] = ''
+# df_show$clusters[is.na(df_show$clusters)] = ''
 
 
 folder = "microglia/caqtl/figures/"
@@ -215,7 +234,7 @@ for( ensGene in unique(df_show$Gene) ){
 		file = paste0(ensGene, "_", ord, ".pdf")
 		file = paste0(folder, file)
 		# file = paste0("/sc/arion/projects/CommonMind/hoffman/MMQTL/figures/", file)		
-		ggsave(file, make_plot( ensGene, ord=ord, window=2e5 ), width=6 )
+		ggsave(file, make_plot( ensGene, ord=ord, window=8e4 ), width=6 )
 
 		if( ord > 1 ){
 			file = paste0(ensGene, "_", ord, "_showConditional.pdf")
@@ -250,7 +269,7 @@ df_show[,url := paste0('../figures/',Gene, '_', eQTL_order,'.pdf')]
 df_show[,url_pmid := paste0('https://pubmed.ncbi.nlm.nih.gov/', PMID)]
 df_show[,url_rsid := paste0('https://www.ncbi.nlm.nih.gov/snp/', Variant)]
 df_show[,url_mesh := paste0('http://id.nlm.nih.gov/mesh/', MeSH_ID)]
-df_show[,url_symbol := paste0('https://www.genecards.org/cgi-bin/carddisp.pl?gene=', Symbol)]
+# df_show[,url_symbol := paste0('https://www.genecards.org/cgi-bin/carddisp.pl?gene=', Symbol)]
 df_show[,url_gene := paste0('https://grch37.ensembl.org/Homo_sapiens/Gene/Summary?db=core;g=', Gene)]
 
 i = grep("Nealelab", df_show$PMID)
@@ -267,7 +286,7 @@ df_html = df_show %>%
 	mutate(url_pmid = c()) %>%
 	mutate(Variant = cell_spec(Variant, "html", link = url_rsid, color="blue", new_tab=TRUE)) %>%
 	mutate(url_rsid = c()) %>%
-	mutate(Symbol = cell_spec(Symbol, "html", link = url_symbol, color="blue", new_tab=TRUE)) %>%
+	# mutate(Symbol = cell_spec(Symbol, "html", link = url_symbol, color="blue", new_tab=TRUE)) %>%
 	mutate(url_rsid = c()) %>%
 	mutate(Trait = cell_spec(Trait, "html", link = url_mesh, color="blue", new_tab=TRUE)) %>%
 	mutate(url_mesh = c()) %>%
@@ -277,7 +296,7 @@ df_html = df_show %>%
 	rename(Category = CATEGORY) %>%
 	mutate(`Shared causal prob` = cell_spec(format(PIP.prod, digits=3), "html", link = url, color="blue", new_tab=TRUE)) %>%
 	mutate(PIP.prod = c())  %>%
-	rename('Cell type' = clusters) %>%
+	# rename('Cell type' = clusters) %>%
 	rename(Order = eQTL_order) %>%
 	mutate('eQTL prob' = format(PIP, digits=3)) %>%
 	mutate('GWAS prob' = format(FINEMAP, digits=3)) %>%
@@ -290,7 +309,7 @@ for( CAT in unique(df_html$Category)){
 
 	outfile = paste0(folder, "../html/co_finemap_", CAT, ".html")
 
-	df_html[Category==CAT,c('Category', 'Trait','Sample size', 'Author', 'PMID', 'Year', 'Gene','Symbol', 'Variant','GWAS prob', 'eQTL prob', 'Shared causal prob', 'Shared prob', 'Order', 'Cell type')] %>%
+	df_html[Category==CAT,c('Category', 'Trait','Sample size', 'Author', 'PMID', 'Year', 'Gene', 'Variant','GWAS prob', 'eQTL prob', 'Shared causal prob', 'Shared prob', 'Order')] %>%
 	 	kable("html", escape = FALSE) %>%
 	  	kable_styling(full_width = FALSE, bootstrap_options = c("hover", "condensed")) %>%
 	  	save_kable(outfile)

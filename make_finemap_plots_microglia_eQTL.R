@@ -249,7 +249,7 @@ dir.create( folder, recursive=TRUE )
 
 setorder(df_show, CATEGORY, Trait, -PIP.prod)
 
-df_show[,url := paste0('https://hoffmg01.u.hpc.mssm.edu/mmqtl/',Gene, '_', eQTL_order,'.pdf')]
+df_show[,url := paste0('../figures/',Gene, '_', eQTL_order,'.pdf')]
 df_show[,url_pmid := paste0('https://pubmed.ncbi.nlm.nih.gov/', PMID)]
 df_show[,url_rsid := paste0('https://www.ncbi.nlm.nih.gov/snp/', Variant)]
 df_show[,url_mesh := paste0('http://id.nlm.nih.gov/mesh/', MeSH_ID)]
