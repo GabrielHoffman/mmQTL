@@ -31,7 +31,7 @@ source(paste0(src, "/plot_genes.R"))
 synLogin()
 
 # Read SNP locations
-df_snp = fread( synGet('syn24196577')$path )
+df_snp = fread( synGet('syn24201358')$path )
 colnames(df_snp) = c("Chr", "Position0", "Position", 'ID')
 df_snp[,Position0 := c()]
 df_snp[,Chr:=gsub("^chr", '', Chr)]
@@ -39,7 +39,7 @@ setkey(df_snp, 'ID')
 gc()
 
 # Read xQTL p-values
-df_eqtl = fread( synGet('syn24182388')$path, header=TRUE )
+df_eqtl = fread( synGet('syn24201360')$path, header=TRUE )
 df_eqtl[,Chr:=gsub("^chr", '', Chr)]
 colnames(df_eqtl)[colnames(df_eqtl) == 'caQTL_order'] = 'eQTL_order'
 df_eqtl[,log10.p.value := -1*pnorm(Z_score_random, 0, 1, lower.tail=FALSE, log.p=TRUE) / log(10) - log10(2)]
@@ -55,7 +55,7 @@ setkey(df_eqtl, Position)
 gc()
 
 # Read fine-mapping results
-df_finemap = fread( synGet('syn24178477')$path, header=FALSE)
+df_finemap = fread( synGet('syn24201357')$path, header=FALSE)
 colnames(df_finemap) = c("Chr", "Gene", "eQTL_order", "Variant", "PIP")
 df_finemap[,Chr := c()]
 setkey(df_finemap, 'Variant')
