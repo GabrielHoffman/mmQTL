@@ -1,0 +1,104 @@
+---
+title: "CIT analysis"
+subtitle: ''
+author: "Developed by [Gabriel Hoffman](http://gabrielhoffman.github.io/)"
+date: "Run on `r Sys.time()`"
+documentclass: article
+output: 
+  html_document:
+  toc: true
+  smart: false
+---
+
+
+
+```{r setup, include=FALSE}
+suppressPackageStartupMessages({
+library(data.table)
+library(ggplot2)
+library(cowplot)
+library(vcd)
+library(GenomicRanges)
+library(AnnotationHub)
+library(ensembldb)
+library(synapser)
+})
+
+synLogin()
+
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning=FALSE,
+  message=FALSE,
+  error = FALSE,
+  tidy = FALSE,
+  cache = TRUE)
+```
+
+
+```{r}
+# For ENSEMBL id ENSG00000279457.4, return ENSG00000279457
+trim_ensembl_ids = function(x){
+  gsub("(.*)\\.(.*)", "\\1", x) 
+}
+```
+
+```{r read.xQTL}
+# caQTL fine-mapping results
+df_caqtl = fread( synGet('syn24201357')$path, header=FALSE)
+colnames(df_caqtl) = c("Chr", "Peak", "eQTL_order", "Variant", "PIP")
+df_caqtl[,Chr := c()]
+setkey(df_caqtl, 'Variant')
+df_caqtl_best = df_caqtl[,.SD[which.max(PIP),],by="Variant"]
+
+# peak location
+df_peak = fread( synGet('syn24201356')$path )
+colnames(df_peak) = c("Chr", "start", "end", 'Peak')
+gr_peak = with(df_peak, GRanges( Chr, IRanges(start, end, name=Peak)))
+
+
+# eQTL fine-mapping results
+df_eqtl = fread( synGet('syn24178479')$path )
+colnames(df_eqtl)[5] = "PIP"
+df_eqtl[,Chr := c()]
+setkey(df_eqtl, 'Variant')
+df_eqtl_best = df_eqtl[,.SD[which.max(PIP),],by="Variant"]
+
+# location of genes
+df_gene = getGeneSymbol( df_eqtl[,data.frame(Gene = unique(Gene))], "Gene")
+gr_gene = with(df_gene, GRanges(Chrom, IRanges(Start, End, name=Gene)))
+
+# ABC links
+df_abc = readRDS( synGet('syn24346713')$path )$ALL_CPM1
+# df_abc = df_abc[df_abc$ABC.Score > .1,]
+
+# Merge eQTL and caQTL
+# only merge when both a gene and peak have a candidate causal variant
+df_merge = merge(df_eqtl, df_caqtl_best, by="Variant")
+df_merge[is.na(PIP.x), PIP.x:=0]
+df_merge[is.na(PIP.y), PIP.y:=0]
+df_merge[,eQTL_order.x:=c()]
+df_merge[,eQTL_order.y:=c()]
+df_merge[,combo := paste(Peak, Gene, sep='_') ]
+```
+
+```{r read.data}
+
+chromAccess = readRDS("/sc/arion/projects/Microglia/atacseq/step_qc_analyses/Model1_ATACseq_norm__QuantPerMig_BIC_4in0.05_CPM_1in0.2_BBrandom_atFDR_0.05/files/KeepDxResidualized_matrix.RDs")
+
+geneExpr  <- readRDS("/sc/arion/projects/Microglia/rnaseq/step_qc_analyses//NotStrict_SampQC_Model1_gene_norm__QuantPerMig_BIC_4in0.05_CPM_1in0.2_BBrandom_atFDR_0.05/KeepDxResidualized_matrix.RDs")
+
+genotypeVCF = "/sc/arion/projects/Microglia/genotyping/Combined_Phase1and2/Merged_Chr1toX_FixedNames.vcf.gz"
+```
+
+
+
+
+
+
+
+
+
+
+
+
