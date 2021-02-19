@@ -215,6 +215,14 @@ X_geno = X_geno[,i]
 
 ## Cit analysis
 ```{r cit.analysis}
+
+# Only perform analysis when Genes, Peaks, Variants that are loaded
+df_sort_sub = df_sort[Gene %in% rownames(geneExpr) & 
+					  Peak %in% rownames(chromAccess) &
+					  Variant %in% rownames(X_geno),]
+df_sort_sub = df_sort_sub[,.SD[which.max(prod),],by="combo"] 
+
+
 # CIT with permutations
 ss = ncol(X_geno)
 n.perm = 600
@@ -309,12 +317,6 @@ plot(net, main = main)
 
 
 ```{r cit, eval=FALSE}
-df_sort_sub = df_sort[Gene %in% rownames(geneExpr) & 
-					  Peak %in% rownames(chromAccess) &
-					  Variant %in% rownames(X_geno),]
-df_sort_sub = df_sort_sub[,.SD[which.max(prod),],by="combo"] 
-df_sort_sub = getGeneSymbol(df_sort_sub , "Gene")
-
 
 # Evalute forward and reverse model, alowing for covariates
 eval_regulatory_direction = function(SNP, Y_OCR, Y_gene, covariates=NULL){
