@@ -38,6 +38,7 @@ library(GenomicRanges)
 library(AnnotationHub)
 library(ensembldb)
 library(cit)
+library(VariantAnnotation)
 library(synapser)
 })
 
@@ -119,6 +120,7 @@ gr_peak = with(df_peak, GRanges( Chr, IRanges(start, end, name=Peak)))
 df_eqtl = fread( synGet('syn24178479')$path )
 colnames(df_eqtl)[5] = "PIP"
 df_eqtl[,Chr := c()]
+df_eqtl = getGeneSymbol(df_eqtl , "Gene")
 setkey(df_eqtl, 'Variant')
 df_eqtl_best = df_eqtl[,.SD[which.max(PIP),],by="Variant"]
 
@@ -140,14 +142,250 @@ df_merge[,eQTL_order.y:=c()]
 df_merge[,combo := paste(Peak, Gene, sep='_') ]
 ```
 
-```{r read.data}
+```{r variant.position}
+df_position = fread( synGet('syn24911783')$path )
+gr_position = with(df_position, GRanges(V1, IRanges(V2, V3, name=V4)))
+varID = df_sort[prod > .01,Variant]
 
+df_merge[,prod:=PIP.x*PIP.y]
+df_sort = df_merge[order(prod, decreasing=TRUE),]
+```
+
+
+
+
+
+```{r read.data}
+# read ATAC-seq data
+#-------------------
 chromAccess = readRDS("/sc/arion/projects/Microglia/atacseq/step_qc_analyses/Model1_ATACseq_norm__QuantPerMig_BIC_4in0.05_CPM_1in0.2_BBrandom_atFDR_0.05/files/KeepDxResidualized_matrix.RDs")
 
-geneExpr  <- readRDS("/sc/arion/projects/Microglia/rnaseq/step_qc_analyses//NotStrict_SampQC_Model1_gene_norm__QuantPerMig_BIC_4in0.05_CPM_1in0.2_BBrandom_atFDR_0.05/KeepDxResidualized_matrix.RDs")
+# read gene expression data
+#-------------------
+geneExpr <- readRDS("/sc/arion/projects/Microglia/rnaseq/step_qc_analyses//NotStrict_SampQC_Model1_gene_norm__QuantPerMig_BIC_4in0.05_CPM_1in0.2_BBrandom_atFDR_0.05/KeepDxResidualized_matrix.RDs")
 
+geneInfo = data.table(Gene = rownames(geneExpr))
+geneInfo = getGeneSymbol( geneInfo, "Gene")
+
+# read genotype data
+#-------------------
 genotypeVCF = "/sc/arion/projects/Microglia/genotyping/Combined_Phase1and2/Merged_Chr1toX_FixedNames.vcf.gz"
+
+param <- ScanVcfParam(which=gr_position[1]) 
+genoObj.tmp = readVcf( genotypeVCF, "hg38", param)
+
+# read sample metadata
+#-------------------
+df_metadata = fread(synGet('syn24967684')$path)
+
+# keep samples present in all 3 assays
+i = with(df_metadata, 	Patient_ID %in% colnames(genoObj.tmp) &
+						Original_RNAseqName %in% colnames(geneExpr) &
+						Original_ATACseqName %in% colnames(chromAccess)	)
+df_metadata = df_metadata[i,]
+
+# read genotype data for this subset of individuals
+param <- ScanVcfParam(which=gr_position[varID], samples = df_metadata$Patient_ID) 
+genoObj = readVcf( genotypeVCF, "hg38", param)
+X_geno = geno(genoObj)$DS
+
+
+# ATAC-seq: sort in same order as df_metdata
+i = match(df_metadata$Original_ATACseqName, colnames(chromAccess))
+chromAccess = chromAccess[,i]
+
+# RNA-seq: sort in same order as df_metdata
+i = match(df_metadata$Original_RNAseqName, colnames(geneExpr))
+geneExpr = geneExpr[,i]
+
+# RNA-seq: sort in same order as df_metdata
+i = match(df_metadata$Patient_ID, colnames(X_geno))
+X_geno = X_geno[,i]
 ```
+
+```{r cit, eval=FALSE}
+df_sort_sub = df_sort[Gene %in% rownames(geneExpr) & 
+					  Peak %in% rownames(chromAccess) &
+					  Variant %in% rownames(X_geno),]
+df_sort_sub = df_sort_sub[,.SD[which.max(prod),],by="combo"] 
+df_sort_sub = getGeneSymbol(df_sort_sub , "Gene")
+
+
+
+
+# Evalute forward and reverse model, alowing for covariates
+eval_regulatory_direction = function(SNP, Y_OCR, Y_gene, covariates=NULL){
+
+	# SNP -> Y_OCR -> Y_gene (forward)
+	res1 = cit.cp( SNP, Y_OCR, Y_gene, covariates)
+
+	# SNP -> Y_gene -> Y_OCR (reverse)
+	res2 = cit.cp( SNP, Y_gene, Y_OCR, covariates)
+
+	data.frame( p.forward = res1['p_cit'],
+				p.reverse = res2['p_cit'])
+}
+
+
+df_res = mclapply( 1:nrow(df_sort_sub[prod > 0,]), function(i){
+
+	message(i)
+	X_snp = X_geno[df_sort_sub$Variant[i],]
+	X_peak = chromAccess[df_sort_sub$Peak[i],]
+	X_expr = geneExpr[df_sort_sub$Gene[i],]
+
+	# df = data.frame(X_snp, X_peak, X_expr )
+
+	res = eval_regulatory_direction( X_snp, X_peak, X_expr)
+
+	data.frame( Variant = df_sort_sub$Variant[i],
+				Peak 	= df_sort_sub$Peak[i],
+				Gene 	= df_sort_sub$Gene[i],
+				res	)
+}, mc.cores=48)
+df_res = do.call(rbind, df_res)
+
+ggplot(df_res, aes(-log10(p.forward), -log10(p.reverse))) + geom_point() + theme_classic() + geom_abline(color="red")
+
+# Want to test variant, EPHA1 and EPHA1-AS1
+###########################################
+
+# association with EPHA1 are very weak
+df_eqtl[Symbol %in% c('EPHA1', 'EPHA1-AS1'),]
+
+# EPHA1  ENSG00000146904
+# EPHA1-AS1 ENSG00000229153
+
+# c('ENSG00000146904', 'ENSG00000229153') %in% rownames(geneExpr) 
+
+geneInfo[Symbol=='EPHA1', Gene]
+
+
+
+param <- ScanVcfParam(which=gr_position[rsid], samples = df_metadata$Patient_ID) 
+genoObj = readVcf( genotypeVCF, "hg38", param)
+X_geno = geno(genoObj)$DS
+
+rsid = 'rs11771145'
+X_snp = X_geno[rsid,]
+X_expr1 = geneExpr[geneInfo[Symbol=='EPHA1-AS1', Gene],]
+X_expr2 = geneExpr[geneInfo[Symbol=='EPHA1', Gene],]
+
+
+df = data.frame(X_snp, X_expr1, X_expr2 )
+cor(df)
+
+res = eval_regulatory_direction( X_snp, X_expr1, X_expr2)
+
+
+
+
+
+# specify permutations
+
+ss = ncol(X_geno)
+n.perm = 200
+perm.index = matrix(NA, nrow=ss, ncol=n.perm )
+for( j in 1:ncol(perm.index) ) perm.index[, j] = sample( 1:ss )
+     
+
+res.lst = mclapply( 1:nrow(df_sort_sub[prod > 0,]), function(i){
+
+	message(i)
+	X_snp = X_geno[df_sort_sub$Variant[i],]
+	X_peak = chromAccess[df_sort_sub$Peak[i],]
+	X_expr = geneExpr[df_sort_sub$Gene[i],]
+
+	# SNP -> Y_OCR -> Y_gene (forward)
+	res.for = cit.cp( X_snp, X_peak, X_expr, perm.index=perm.index, n.perm=n.perm)
+
+	# SNP -> Y_gene -> Y_OCR (reverse)
+	res.rev  = cit.cp( X_snp, X_expr, X_peak, perm.index=perm.index, n.perm=n.perm)
+
+	info = data.frame( 	Variant = df_sort_sub$Variant[i],
+						Peak 	= df_sort_sub$Peak[i],
+						Gene 	= df_sort_sub$Gene[i])
+
+	list( forward = res.for, 
+		reverse = res.rev,
+		info = info)
+}, mc.cores=48)
+
+res.forward = lapply(res.lst, function(x) x$forward)
+res.reverse = lapply(res.lst, function(x) x$reverse)
+info = do.call(rbind, lapply(res.lst, function(x) x$info))
+
+
+res.fdr.forward = fdr.cit( res.forward )
+res.fdr.reverse = fdr.cit( res.reverse )
+
+info$q.cit.forward = res.fdr.forward$q.cit
+info$q.cit.reverse = res.fdr.reverse$q.cit
+
+lim = -log10(with(info, min(c(q.cit.forward, q.cit.reverse))))
+
+ggplot(info, aes(-log10(q.cit.forward), -log10(q.cit.reverse))) + geom_point() + theme_classic() + geom_abline(color="red") + theme(aspect.ratio=1) + xlim(0, lim) + ylim(0, lim)
+
+
+
+library(igraph)
+
+i = 1
+
+edges = data.frame(rbind( c(1, 2), c(2, 3)))
+colnames(edges) = c("source", "destination")
+
+nodes = data.frame(id = 1:3, label = c(df_sort_sub$Variant[i],
+	df_sort_sub$Peak[i], df_sort_sub$Symbol[i]))
+
+net <- graph_from_data_frame(d = edges, vertices = nodes, directed = TRUE)
+
+main = with(info[i,], paste("q.forward = ", format(q.cit.forward, digits=3), "\n", 
+				"q.reverse =", format(q.cit.reverse, digits=3)))
+
+
+plot(net, main = main)
+
+
+
+
+
+
+# Link peak to peak
+###################
+
+setkey(df_caqtl, "Variant")
+
+df = df_caqtl[1:1000,][,.SD[length(unique(Peak)) > 1,],by="Variant"]
+
+
+Variant = 'rs10034935'
+P1 = 'Peak_136600'
+P2 = 'Peak_136601'
+
+param <- ScanVcfParam(which=gr_position[Variant], samples = df_metadata$Patient_ID) 
+genoObj = readVcf( genotypeVCF, "hg38", param)
+X_geno = geno(genoObj)$DS
+
+
+
+X_snp = X_geno[Variant,]
+X_peak1 = chromAccess[P1,]
+X_peak2 = chromAccess[P2,]
+
+# SNP -> Y_OCR -> Y_gene (forward)
+res.for = cit.cp( X_snp, X_peak1, X_peak2)
+
+# SNP -> Y_gene -> Y_OCR (reverse)
+res.rev  = cit.cp( X_snp, X_peak2, X_peak1)
+
+```
+
+
+
+
+
+
 
 
 
