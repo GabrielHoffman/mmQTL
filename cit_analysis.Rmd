@@ -11,6 +11,22 @@ output:
 ---
 
 
+<!---
+
+cd /hpc/users/hoffmg01/work/mmQTL
+# rm -rf combined_analysis/eval_resid_in_each_cache/
+ml git pandoc R/3.6.3 # to get peer
+git pull
+R
+
+system("git pull")
+
+
+rmarkdown::render("cit_analysis.Rmd")
+
+
+
+--->
 
 ```{r setup, include=FALSE}
 suppressPackageStartupMessages({
@@ -21,6 +37,7 @@ library(vcd)
 library(GenomicRanges)
 library(AnnotationHub)
 library(ensembldb)
+library(cit)
 library(synapser)
 })
 
@@ -44,8 +61,8 @@ trim_ensembl_ids = function(x){
 ```
 
 ```{r read.xQTL}
-# caQTL fine-mapping results
-df_caqtl = fread( synGet('syn24201357')$path, header=FALSE)
+# caQTL fine-mapping results # old syn24201357
+df_caqtl = fread( synGet('syn24911652')$path, header=FALSE)
 colnames(df_caqtl) = c("Chr", "Peak", "eQTL_order", "Variant", "PIP")
 df_caqtl[,Chr := c()]
 setkey(df_caqtl, 'Variant')
