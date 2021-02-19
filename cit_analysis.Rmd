@@ -15,7 +15,7 @@ output:
 
 cd /hpc/users/hoffmg01/work/mmQTL
 # rm -rf combined_analysis/eval_resid_in_each_cache/
-ml git pandoc R/3.6.3 # to get peer
+ml git pandoc R/4.0.2
 git pull
 R
 
@@ -53,10 +53,51 @@ knitr::opts_chunk$set(
 ```
 
 
-```{r}
+```{r functions}
 # For ENSEMBL id ENSG00000279457.4, return ENSG00000279457
 trim_ensembl_ids = function(x){
   gsub("(.*)\\.(.*)", "\\1", x) 
+}
+
+# Add column Symbol using column gene_id storing ENSEMBL id
+getGeneSymbol = function( df, column="row.names"){
+
+  if( ! is(df, "data.frame") ){
+    df = as.data.frame(df)
+  }
+
+  # Load ENSEMBL v96 database
+  # see https://www.bioconductor.org/packages/release/bioc/vignettes/ensembldb/inst/doc/ensembldb.html#10_getting_or_building_ensdb_databasespackages
+  ah <- AnnotationHub()
+  ensdb = ah[["AH69187"]] # ENSEMBL v96
+
+  if( column == "row.names"){    
+    geneID = rownames(df)
+  }else{
+    geneID = df[[column]]
+  }
+
+  ensIDs = trim_ensembl_ids( geneID )
+
+  geneSymbol = mapIds(ensdb, keys=ensIDs, keytype="GENEID", column="GENENAME")
+  df$Symbol = geneSymbol
+
+  entrez = mapIds(ensdb, keys=ensIDs, keytype="GENEID", column="ENTREZID")
+  df$Entrez = entrez
+
+  df_info = ensembldb::select(ensdb, keys=ensIDs, keytype="GENEID", column=c("SEQNAME", "GENESEQSTART", "GENESEQEND"))
+
+  # df2 = merge( data.frame(GENEID = ensIDs, stringsAsFactors=FALSE), chroms, by='GENEID')
+
+  idx = match(ensIDs, df_info$GENEID)
+  # df$Chrom = c()
+  df$Chrom = df_info$SEQNAME[idx]
+  # df$Start = c()
+  df$Start = df_info$GENESEQSTART[idx]
+  # df$End = c()
+  df$End = df_info$GENESEQEND[idx]
+
+  df
 }
 ```
 
