@@ -249,7 +249,7 @@ res.lst = mclapply( 1:nrow(df_sort_sub[prod > 0.01,]), function(i){
 	list( forward = res.for, 
 		reverse = res.rev,
 		info = info)
-}, mc.cores=48)
+}, mc.cores=24)
 
 res.forward = lapply(res.lst, function(x) x$forward)
 res.reverse = lapply(res.lst, function(x) x$reverse)
