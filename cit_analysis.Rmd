@@ -271,7 +271,7 @@ info = getGeneSymbol( info, "Gene")
 info$density <- get_density(-log10(info$p.cit.forward), -log10(info$p.cit.reverse), n = 60)
 
 
-cutoff = 0.10∂
+cutoff = 0.10
 
 info$shape = 16
 info$shape[info$q.cit.forward < cutoff] = 17
