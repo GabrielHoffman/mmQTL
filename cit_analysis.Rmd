@@ -281,7 +281,7 @@ ggplot(info, aes(-log10(p.cit.forward), -log10(p.cit.reverse), color=density)) +
 
 
 ```{r cache=FALSE}
-knitr:knit_exit()
+knitr::knit_exit()
 ```
 
 
