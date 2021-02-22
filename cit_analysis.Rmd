@@ -36,6 +36,7 @@ library(viridis)
 library(cowplot)
 library(vcd)
 library(GenomicRanges)
+library(ggrepel)
 library(AnnotationHub)
 library(ensembldb)
 library(cit)
@@ -224,7 +225,7 @@ df_sort_sub = df_sort_sub[,.SD[which.max(prod),],by="combo"]
 
 # CIT with permutations
 ss = ncol(X_geno)
-n.perm = 600
+n.perm = 5000
 perm.index = matrix(NA, nrow=ss, ncol=n.perm )
 for( j in 1:ncol(perm.index) ) perm.index[, j] = sample( 1:ss )
      
@@ -254,7 +255,6 @@ res.forward = lapply(res.lst, function(x) x$forward)
 res.reverse = lapply(res.lst, function(x) x$reverse)
 info = do.call(rbind, lapply(res.lst, function(x) x$info))
 
-
 res.fdr.forward = fdr.cit( res.forward )
 res.fdr.reverse = fdr.cit( res.reverse )
 
@@ -264,21 +264,41 @@ info$p.cit.reverse = res.fdr.reverse$p.cit
 info$q.cit.forward = res.fdr.forward$q.cit
 info$q.cit.reverse = res.fdr.reverse$q.cit
 
+info = getGeneSymbol( info, "Gene")
+```
 
+```{r plot.results}
 info$density <- get_density(-log10(info$p.cit.forward), -log10(info$p.cit.reverse), n = 60)
 
-info$shape = 1
-info$shape[info$q.cit.forward < .1] = 2
-info$shape[info$q.cit.reverse < .1] = 3
+
+cutoff = 0.13
+
+info$shape = 16
+info$shape[info$q.cit.forward < cutoff] = 17
+info$shape[info$q.cit.reverse < cutoff] = 17
+
+info$score = with(info, -log10(p.cit.forward) - -log10(p.cit.reverse))
+
+# lim = -log10(with(info, min(c(p.cit.forward, p.cit.reverse))))
+# ggplot(info, aes(-log10(p.cit.forward), -log10(p.cit.reverse), color=density)) + geom_point(shape=info$shape) + theme_classic() + geom_abline(color="red") + theme(aspect.ratio=1) + xlim(0, lim) + ylim(0, lim) + xlab(bquote(Forward~-log[10]~p[CIT])) + ylab(bquote(Reverse~-log[10]~p[CIT])) + scale_color_viridis() 
+
 
 lim = -log10(with(info, min(c(p.cit.forward, p.cit.reverse))))
-ggplot(info, aes(-log10(p.cit.forward), -log10(p.cit.reverse), color=density)) + geom_point(shape=info$shape) + theme_classic() + geom_abline(color="red") + theme(aspect.ratio=1) + xlim(0, lim) + ylim(0, lim) + xlab(bquote(Forward~-log[10]~p[CIT])) + ylab(bquote(Reverse~-log[10]~p[CIT])) + scale_color_viridis() 
+maxScore = max(abs(info$score))
+ggplot(info, aes(-log10(p.cit.forward), -log10(p.cit.reverse), color=score, label=ifelse(shape!=1, Symbol, NA))) + 
+	geom_point(shape=info$shape) + 
+	theme_classic() + 
+	geom_abline(color="red") + 
+	theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + 
+	xlim(0, lim) + ylim(0, lim) + 
+	xlab(bquote(Forward~-log[10]~p[CIT])) + 
+	ylab(bquote(Reverse~-log[10]~p[CIT])) + 
+	scale_color_gradient2(name = "Support for direction", low="blue", mid="grey", high="red", limits=c(-maxScore, maxScore)) + 
+	geom_text_repel() + 
+	ggtitle("Directionality of effect")
+
 ```
 
-
-```{r cache=FALSE}
-knitr::knit_exit()
-```
 
 
 ```
@@ -304,6 +324,10 @@ plot(net, main = main)
 
 
 
+
+```{r cache=FALSE}
+knitr::knit_exit()
+```
 
 
 
