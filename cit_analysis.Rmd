@@ -288,7 +288,7 @@ info$score = with(info, -log10(p.cit.forward) - -log10(p.cit.reverse))
 lim = -log10(with(info, min(c(p.cit.forward, p.cit.reverse))))
 maxScore = max(abs(info$score))
 ggplot(info, aes(-log10(p.cit.forward), -log10(p.cit.reverse), color=score, label=ifelse(shape!=16, Symbol, NA))) + 
-	geom_abline(color="red") + 
+	geom_abline(color="black") + 
 	geom_point(shape=info$shape) + 
 	theme_classic() + 
 	theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + 
