@@ -303,7 +303,7 @@ ggplot(info, aes(-log10(p.cit.forward), -log10(p.cit.reverse), color=score, labe
 
 
 
-```
+```{r plot.trio}
 library(igraph)
 
 i = 1
