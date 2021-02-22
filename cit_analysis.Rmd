@@ -291,7 +291,7 @@ ggplot(info, aes(-log10(p.cit.forward), -log10(p.cit.reverse), color=score, labe
 	geom_point(shape=info$shape) + 
 	theme_classic() + 
 	geom_abline(color="red") + 
-	theme(aspect.ratio=16, plot.title = element_text(hjust = 0.5)) + 
+	theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + 
 	xlim(0, lim) + ylim(0, lim) + 
 	xlab(bquote(Forward~-log[10]~p[CIT])) + 
 	ylab(bquote(Reverse~-log[10]~p[CIT])) + 
