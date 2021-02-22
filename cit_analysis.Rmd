@@ -271,11 +271,13 @@ info = getGeneSymbol( info, "Gene")
 info$density <- get_density(-log10(info$p.cit.forward), -log10(info$p.cit.reverse), n = 60)
 
 
-cutoff = 0.13
+cutoff = .12
 
 info$shape = 16
 info$shape[info$q.cit.forward < cutoff] = 17
 info$shape[info$q.cit.reverse < cutoff] = 17
+table(info$shape)
+
 
 info$score = with(info, -log10(p.cit.forward) - -log10(p.cit.reverse))
 
@@ -289,7 +291,7 @@ ggplot(info, aes(-log10(p.cit.forward), -log10(p.cit.reverse), color=score, labe
 	geom_point(shape=info$shape) + 
 	theme_classic() + 
 	geom_abline(color="red") + 
-	theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + 
+	theme(aspect.ratio=16, plot.title = element_text(hjust = 0.5)) + 
 	xlim(0, lim) + ylim(0, lim) + 
 	xlab(bquote(Forward~-log[10]~p[CIT])) + 
 	ylab(bquote(Reverse~-log[10]~p[CIT])) + 
