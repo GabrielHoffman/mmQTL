@@ -34,7 +34,6 @@ library(data.table)
 library(ggplot2)
 library(viridis)
 library(cowplot)
-library(vcd)
 library(GenomicRanges)
 library(ggrepel)
 library(AnnotationHub)
@@ -399,14 +398,16 @@ X_expr1 = geneExpr[geneInfo[Symbol=='EPHA1-AS1', Gene],]
 X_expr2 = geneExpr[geneInfo[Symbol=='EPHA1', Gene],]
 
 
-df = data.frame(X_snp, X_expr1, X_expr2 )
+df = data.frame(rs11771145 = X_snp, 
+	'EPHA1-AS1' = X_expr1, 
+	EPHA1 = X_expr2 )
 cor(df)
 
 res = eval_regulatory_direction( X_snp, X_expr1, X_expr2)
 
+Which cell type are these correlated in?????
 
-
-
+summary(lm(X_expr1 ~ X_snp))
 
 
 
