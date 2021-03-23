@@ -15,7 +15,7 @@ output:
 
 cd /hpc/users/hoffmg01/work/mmQTL
 # rm -rf cit_analysis_cache/
-ml git pandoc R/4.0.2
+ml git pandoc 
 git pull
 R
 
@@ -40,6 +40,8 @@ library(AnnotationHub)
 library(ensembldb)
 library(cit)
 library(VariantAnnotation)
+library(limma)
+library(zenith)
 library(synapser)
 })
 
@@ -51,6 +53,7 @@ knitr::opts_chunk$set(
   message=FALSE,
   error = FALSE,
   tidy = FALSE,
+  dev = c('png', 'pdf'),
   cache = TRUE)
 ```
 
@@ -321,6 +324,93 @@ main = with(info[i,], paste("q.forward = ", format(q.cit.forward, digits=3), "\n
 
 plot(net, main = main)
 ```
+
+Symbol.get = 'EPHA1-AS1'
+
+ensGene = df_sort_sub$Gene[which(df_sort_sub$Symbol == Symbol.get)]
+
+X_expr.gene = geneExpr[ensGene,]
+
+cvalues = cor(X_expr.gene, t(geneExpr))
+
+X_snp = X_geno['rs11771145',]
+
+cor.test( X_snp, X_expr.gene)
+
+df = mclapply( which(abs(cvalues) > .3), function(i){
+
+	if(i %% 10 == 0) message(i)
+	# SNP -> Y_OCR -> Y_gene (forward)
+	res.for = cit.cp( X_snp, X_expr.gene, geneExpr[i,])
+
+	data.frame(Gene = rownames(geneExpr)[i], t(res.for))
+}, mc.cores=24)
+df = do.call(rbind, df)
+df = df[df$Gene!=ensGene,]
+df = df[order(df$p_cit),]
+range(df$p_cit)
+
+
+
+
+i=1
+X_snp = X_geno[df_sort_sub$Variant[i],]
+X_peak = chromAccess[df_sort_sub$Peak[i],]
+X_expr = geneExpr[df_sort_sub$Gene[i],]
+
+cor.test( X_snp, X_expr)
+
+vobj = geneExpr[rownames(geneExpr)!='ENSG00000229153',]
+
+library(limma)
+dsgn = model.matrix(~X_peak)
+fit = lmFit(vobj, dsgn)
+fit = eBayes(fit)
+
+
+
+
+# Load Gene Ontology database 
+go.gs = get_GeneOntology()
+   
+# convert from GeneSetCollection to list used by camera and zenith
+geneSets_GO = recodeToList( go.gs )
+
+# Map from Ensembl genes in geneSets_GO to 
+# from trimmed Ensembl names from RNA-seq data 
+index = ids2indices( geneSets_GO, trim_ensembl_ids(rownames(fit)))
+   
+# filter by size of gene set
+n_genes_in = 10
+index = index[sapply(index, length) >= n_genes_in]
+
+# Run camera
+res_camera = camera( vobj, index, dsgn, inter.gene.cor=NA)
+
+head(res_camera)
+
+
+
+
+# try in CMC
+
+
+# brema
+library(synapser)
+library(data.table)
+synLogin()
+
+file = synGet("syn23225473")$path
+
+cmd = paste("zgrep 'ENSG00000229153'", file )
+
+df = fread(cmd=cmd)
+
+
+
+
+
+
 
 
 
