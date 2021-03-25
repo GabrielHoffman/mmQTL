@@ -1,0 +1,94 @@
+---
+title: "BREMA: count fine mapping results"
+author:
+- name: "[Gabriel Hoffman](http://gabrielhoffman.github.io)$^{1}$$"
+  affiliation: | 
+    [1] Icahn School of Medicine at Mount Sinai, New York
+date: "Run on `r Sys.time()`"
+documentclass: article
+output:
+  html_document:
+    toc: true
+    toc_float: true
+params:
+  upload: FALSE
+---
+
+
+<!---
+
+cd /Users/gabrielhoffman/workspace/repos/mmQTL_plots
+# rm -rf combined_analysis/combine_all_EPHA1_cache
+
+R
+
+rmarkdown::render("count_fine_mapping.Rmd")
+
+
+--->
+ 
+```{r setup, include=FALSE}
+suppressPackageStartupMessages({
+library(data.table)
+library(ggplot2)
+library(synapser)
+synLogin()
+})
+
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning=FALSE,
+  message=FALSE,
+  error = FALSE,
+  tidy = FALSE,
+  dev = c('png', 'pdf'),
+  cache = TRUE)
+```
+
+
+```{r read.data}
+df = fread(synGet('syn23225412')$path)
+```
+
+# Count variants
+```{r count.variants}
+
+df.count = lapply(1:5, function(ord){
+  df_filter = df[(eQTL_order == ord) & (V5 > 0.1),]
+
+  x = seq(min(df_filter$V5), 1, length=1000)
+
+  y = sapply(x, function(i){
+  	sum(df_filter$V5 > i)
+  	})
+
+   data.frame(order=as.character(ord), x,y)
+})
+df.count = do.call(rbind, df.count)
+df.count$order = factor(df.count$order, as.character(1:10))
+
+ggplot(df.count, aes(x,y, color=order)) + geom_line() + theme_bw() + xlab("Posterior inclusion probability") + ylab("Number of variants") + ggtitle("Fine-mapping: by variant") + xlim(0, 1) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_brewer(palette="Set1", name="eQTL order")
+```
+
+
+# Count genes
+```{r count.genes}
+
+df.count = lapply(1:5, function(ord){
+
+  df2 = df[(eQTL_order == ord),.SD[which.max(V5)], by="Gene"]
+  df2 = df2[order(V5),]
+
+  x = seq(0, 1, length=1000)
+
+  y = sapply(x, function(i){
+  	sum(df2$V5 > i)
+  })
+  data.frame(order=as.character(ord), x,y)
+})
+df.count = do.call(rbind, df.count)
+df.count$order = factor(df.count$order, as.character(1:5))
+
+ggplot(df.count, aes(x,y, color=order)) + geom_line() + theme_bw() + xlab("Posterior inclusion probability") + ylab("Number of genes") + ggtitle("Fine-mapping: by gene") + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_brewer(palette="Set1", name="eQTL order")
+```
+
