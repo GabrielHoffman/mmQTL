@@ -25,14 +25,21 @@ library(synapser)
 library(knit2synapse)
 synLogin()
 
-synDelete('syn25585410')
+synDelete('syn25585447')
+
+createAndKnitToFolderEntity = function (file, parentId, folderName, wikiName = NULL, overwrite = FALSE, knitmd = TRUE, ...){
+    entity <- synapser::Folder(parentId = parentId, name = folderName)
+    entity <- synapser::synStore(entity, ...)
+    knitfile2synapse(file = file, owner = entity, wikiName = wikiName, 
+        overwrite = overwrite, knitmd = knitmd, parentWikiId=NA)
+}
+
 
 # Run code and upload results to Synapse
-knit2synapse::createAndKnitToFolderEntity(file = "design_MPRA.Rmd",
+createAndKnitToFolderEntity(file = "design_MPRA.Rmd",
                                           parentId ="syn25585302",
                                           folderName = 'Design of MPRA',
-                                          overwrite=TRUE, 
-                                          knitmd=TRUE)
+                                          overwrite=TRUE)
 ```
 
 ```{r setup, include=FALSE}
