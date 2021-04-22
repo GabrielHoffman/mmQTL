@@ -1,0 +1,170 @@
+---
+title: "Designing MPRA from BREMA"
+author:
+- name: "[Gabriel Hoffman](http://gabrielhoffman.github.io)$^{1}$"
+  affiliation: | 
+    [1] Icahn School of Medicine at Mount Sinai, New York
+date: "Run on `r Sys.time()`"
+documentclass: article
+output:
+  html_document:
+    toc: true
+    toc_float: true
+params:
+  upload: FALSE
+---
+
+
+<!---
+
+cd /Users/gabrielhoffman/workspace/repos/mmQTL_plots
+# rm -rf combined_analysis/combine_all_EPHA1_cache
+
+R
+
+rmarkdown::render("design_MPRA.Rmd")
+
+
+--->
+ 
+```{r setup, include=FALSE}
+suppressPackageStartupMessages({
+library(data.table)
+library(ggplot2)
+library(synapser)
+synLogin()
+
+library(knit2synapse)
+knit2synapse::createAndKnitToFolderEntity(file = "mmQTL_plots/design_MPRA.Rmd",
+                                          parentId ="syn25585302",
+                                          folderName = 'Design of MPRA',
+                                          overwrite=TRUE, 
+                                          knitmd=TRUE)
+})
+
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning=FALSE,
+  message=FALSE,
+  error = FALSE,
+  tidy = FALSE,
+  dev = c('png', 'pdf'),
+  cache = TRUE)
+```
+
+
+
+
+```{r synapse.parameters, include=FALSE, cache=TRUE}
+library(githubr)
+parentId = 'syn25585302';
+activityName = 'Design of MPRA';
+activityDescription = 'Design of MPRA';
+thisFileName <- 'design_MPRA.Rmd'
+# Github link
+thisRepo <- getRepo(repository = "GabrielHoffman/mmQTL", ref="branch", refName='main')
+thisFile <- getPermlink(repository = thisRepo, repositoryPath=thisFileName)
+```
+
+
+```{r read.data}
+# df = fread(synGet('syn23225412')$path) # V1
+df_in = fread(synGet('syn25541885')$path) # V2
+# df_eQTL = fread(synGet('syn25541913')$path) # V2
+
+# variant positions
+df_positions = fread(synGet('syn25542333')$path) # V2
+colnames(df_positions) = c("Variant", "chrom", "position_hg19", "REF", "ALT")
+
+# idx = (df_in$Variant %in% df_positions$Variant)
+# table(idx)
+# df_in$Variant[which(!idx)][1:10]
+
+df = merge(df_in, df_positions, by='Variant')
+```
+
+
+# Count variants
+```{r count.variants}
+
+df.count = lapply(1:5, function(ord){
+  df_filter = df[(eQTL_order == ord) & (PP > 0.1),]
+
+  x = seq(min(df_filter$PP), 1, length=1000)
+
+  y = sapply(x, function(i){
+  	sum(df_filter$PP > i)
+  	})
+
+   data.frame(order=as.character(ord), x,y)
+})
+df.count = do.call(rbind, df.count)
+df.count$order = factor(df.count$order, as.character(1:10))
+
+ggplot(df.count, aes(x,y, color=order)) + geom_line() + theme_bw() + xlab("Posterior inclusion probability") + ylab("Number of variants") + ggtitle("Fine-mapping: by variant") + xlim(0, 1) + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_brewer(palette="Set1", name="eQTL order")
+```
+
+
+# Count genes
+```{r count.genes}
+
+df.count = lapply(1:5, function(ord){
+
+  df2 = df[(eQTL_order == ord),.SD[which.max(PP)], by="Gene"]
+  df2 = df2[order(PP),]
+
+  x = seq(0, 1, length=1000)
+
+  y = sapply(x, function(i){
+  	sum(df2$PP > i)
+  })
+  data.frame(order=as.character(ord), x,y)
+})
+df.count = do.call(rbind, df.count)
+df.count$order = factor(df.count$order, as.character(1:5))
+
+ggplot(df.count, aes(x,y, color=order)) + geom_line() + theme_bw() + xlab("Posterior inclusion probability") + ylab("Number of genes") + ggtitle("Fine-mapping: by gene") + theme(aspect.ratio=1, plot.title = element_text(hjust = 0.5)) + scale_color_brewer(palette="Set1", name="eQTL order")
+```
+
+# Select variants
+## PP > 0.1
+```{r filter, fig.width=5, fig.height=5}
+df_one = df[eQTL_order==1,]
+
+hist(df_one[PP > .1,PP])
+```
+
+Number of variants: `r nrow(df_one[PP > .1,])`
+
+Number of genes: `r df_one[PP > .1,length(unique(Gene))]`
+
+
+## PP > 0.01, sample 10K variants in proportion to PP
+```{r filter2, fig.width=5, fig.height=5}
+df_one = df[(eQTL_order==1)&(PP > 0.01),]
+
+idx = sample.int(nrow(df_one), 10000, prob=df_one$PP)
+
+hist(df_one$PP[idx])
+```
+
+Number of variants with PP>0.1: `r nrow(df_one[idx,][PP > .1,])`
+
+Number of genes: `r df_one[idx,][PP > .1,length(unique(Gene))]`
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
