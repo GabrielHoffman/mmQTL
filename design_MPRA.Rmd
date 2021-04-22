@@ -1,17 +1,8 @@
 ---
 title: "Designing MPRA from BREMA"
-author:
-- name: "[Gabriel Hoffman](http://gabrielhoffman.github.io)$^{1}$"
-  affiliation: | 
-    [1] Icahn School of Medicine at Mount Sinai, New York
+author: "[Gabriel Hoffman](http://gabrielhoffman.github.io)"
 date: "Run on `r Sys.time()`"
-documentclass: article
-output:
-  html_document:
-    toc: true
-    toc_float: true
-params:
-  upload: FALSE
+output: html_document
 ---
 
 
@@ -27,20 +18,29 @@ rmarkdown::render("design_MPRA.Rmd")
 
 --->
  
-```{r setup, include=FALSE}
-suppressPackageStartupMessages({
-library(data.table)
-library(ggplot2)
+
+
+ ```{r, eval=FALSE}
 library(synapser)
+library(knit2synapse)
 synLogin()
 
-library(knit2synapse)
-knit2synapse::createAndKnitToFolderEntity(file = "mmQTL_plots/design_MPRA.Rmd",
+synDelete('syn25585410')
+
+# Run code and upload results to Synapse
+knit2synapse::createAndKnitToFolderEntity(file = "design_MPRA.Rmd",
                                           parentId ="syn25585302",
                                           folderName = 'Design of MPRA',
                                           overwrite=TRUE, 
                                           knitmd=TRUE)
-})
+```
+
+```{r setup, include=FALSE}
+library(data.table)
+library(ggplot2)
+library(synapser)
+library(knit2synapse)
+synLogin()
 
 knitr::opts_chunk$set(
   echo = FALSE,
@@ -64,17 +64,21 @@ thisFileName <- 'design_MPRA.Rmd'
 # Github link
 thisRepo <- getRepo(repository = "GabrielHoffman/mmQTL", ref="branch", refName='main')
 thisFile <- getPermlink(repository = thisRepo, repositoryPath=thisFileName)
+
+ALL_USED_IDs = c()
 ```
 
 
 ```{r read.data}
 # df = fread(synGet('syn23225412')$path) # V1
 df_in = fread(synGet('syn25541885')$path) # V2
+ALL_USED_IDs = c(ALL_USED_IDs, 'syn25541885')
 # df_eQTL = fread(synGet('syn25541913')$path) # V2
 
 # variant positions
 df_positions = fread(synGet('syn25542333')$path) # V2
 colnames(df_positions) = c("Variant", "chrom", "position_hg19", "REF", "ALT")
+ALL_USED_IDs = c(ALL_USED_IDs, 'syn25542333')
 
 # idx = (df_in$Variant %in% df_positions$Variant)
 # table(idx)
@@ -143,6 +147,7 @@ Number of genes: `r df_one[PP > .1,length(unique(Gene))]`
 ```{r filter2, fig.width=5, fig.height=5}
 df_one = df[(eQTL_order==1)&(PP > 0.01),]
 
+set.seed(1)
 idx = sample.int(nrow(df_one), 10000, prob=df_one$PP)
 
 hist(df_one$PP[idx])
@@ -153,6 +158,22 @@ Number of variants with PP>0.1: `r nrow(df_one[idx,][PP > .1,])`
 Number of genes: `r df_one[idx,][PP > .1,length(unique(Gene))]`
 
 
+```{r storeResults}
+
+# Code
+CODE <- Folder(name = "Design of MPRA", parentId = 'syn25585302')
+CODE <- synStore(CODE)
+
+write.table(df_one[idx,], file = 'MPRA_BREMA_variants.tsv', sep = '\t', row.names=FALSE, quote=FALSE)
+
+COV_OBJ = synapser::File('MPRA_BREMA_variants.tsv', name = 'MPRA_BREMA_variants.tsv', parentId = CODE$properties$id)
+COV_OBJ = synStore(COV_OBJ, used = ALL_USED_IDs, activityName = activityName, 
+                   executed = thisFile, activityDescription = activityDescription)
+```
+
+
+### Source
+[markdown](`r thisFile`)
 
 
 
