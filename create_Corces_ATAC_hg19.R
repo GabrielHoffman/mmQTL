@@ -3,9 +3,10 @@
 # Create GRanges list for snATAC-seq from Corces, et al, 2020, in hg19
 
 
+# system("git pull")
+
 library(GenomicRanges)
 library(rtracklayer)
-
 
 ###
 # CORCES :: Load all 24 clusters and assign them cluster (=cell type) names
