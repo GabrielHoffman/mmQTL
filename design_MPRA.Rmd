@@ -25,7 +25,7 @@ library(synapser)
 library(knit2synapse)
 synLogin()
 
-synDelete('syn25612403')
+synDelete('syn25612506')
 
 
 # Run code and upload results to Synapse
@@ -71,7 +71,7 @@ ALL_USED_IDs = c()
 ```
 
 
-```{r read.data}
+```{r read.data, message=FALSE}
 # fine-mapping results
 df_in = fread(synGet('syn25592273')$path) # V2
 ALL_USED_IDs = c(ALL_USED_IDs, 'syn25592273')
