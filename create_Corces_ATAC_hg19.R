@@ -3,7 +3,8 @@
 # Create GRanges list for snATAC-seq from Corces, et al, 2020, in hg19
 
 
-# system("git pull")
+# system("git pull"); source("create_Corces_ATAC_hg19.R")
+
 
 library(GenomicRanges)
 library(rtracklayer)
