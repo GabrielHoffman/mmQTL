@@ -25,14 +25,7 @@ library(synapser)
 library(knit2synapse)
 synLogin()
 
-synDelete('syn25585924')
-
-createAndKnitToFolderEntity = function (file, parentId, folderName, wikiName = NULL, overwrite = FALSE, knitmd = TRUE, ...){
-    entity <- synapser::Folder(parentId = parentId, name = folderName)
-    entity <- synapser::synStore(entity, ...)
-    knitfile2synapse(file = file, owner = entity, wikiName = wikiName, 
-        overwrite = overwrite, knitmd = knitmd, parentWikiId=NA)
-}
+synDelete('syn25612403')
 
 
 # Run code and upload results to Synapse
@@ -40,6 +33,9 @@ knit2synapse::createAndKnitToFolderEntity(file = "design_MPRA.Rmd",
                                           parentId ="syn25585302",
                                           folderName = 'Design of MPRA',
                                           overwrite=TRUE)
+
+
+
 ```
 
 ```{r setup, include=FALSE, echo=FALSE}
@@ -108,7 +104,7 @@ for(cellType in names(gr.lst) ){
 ```
 
 # Count variants
-```{r count.variants}
+```{r count.variants, fig.width=5, fig.height=5}
 
 df.count = lapply(1:5, function(ord){
   df_filter = df[(eQTL_order == ord) & (PP > 0.1),]
@@ -129,7 +125,7 @@ ggplot(df.count, aes(x,y, color=order)) + geom_line() + theme_bw() + xlab("Poste
 
 
 # Count genes
-```{r count.genes}
+```{r count.genes, fig.width=5, fig.height=5}
 
 df.count = lapply(1:5, function(ord){
 
@@ -235,6 +231,25 @@ df_melt = reshape2::melt(df_stats, id.vars=c('n', 'x', "exceed", "frac"))
 ggplot(df_melt, aes(x, value/n, color=factor(n))) + geom_line() + theme_classic() + facet_wrap(~variable, ncol=3) + xlab('Posterior probability cutoff') + ylab("Fraction of total variants in ATAC peaks") + scale_color_viridis_d(name = "# of variants") + theme(aspect.ratio=1)
 ```
 
+Show distance to TSS stratified by posterior probability
+
+```{r ATAC.integrate3, fig.width=9, fig.height=5}
+df_stats = lapply( names(idx.lst), function(n){
+
+  idx = idx.lst[[as.character(n)]] 
+
+  xvalue = seq(0.01, .99, length.out=100)
+  df_stats = lapply(xvalue, function(x){
+    data.frame(n, x, dTSS = df_one[idx,][PP > x,Dis_to_TSS])
+  })
+  do.call(rbind, df_stats)
+})
+df_stats = do.call(rbind, df_stats)
+
+ggplot(df_stats, aes(abs(dTSS), group=x, color=x)) + geom_density() + scale_x_log10() + scale_color_viridis_c("Posterior probability", limits=c(0,1)) + theme_classic() + theme(aspect.ratio=1) + xlab("Distance to TSS") + facet_wrap(~n) 
+```
+
+
 ```{r storeResults, eval=FALSE}
 # Code
 CODE <- Folder(name = "Design of MPRA", parentId = 'syn25585302')
@@ -262,7 +277,7 @@ sapply( names(idx.lst), function(n){
 
 
 # TODO 
-@Biao is providing effect size.
+Biao is providing effect size.
 
 
 
