@@ -20,12 +20,12 @@ rmarkdown::render("design_MPRA.Rmd")
  
 
 
- ```{r, eval=FALSE}
+ ```{r, eval=FALSE, echo=FALSE}
 library(synapser)
 library(knit2synapse)
 synLogin()
 
-synDelete('syn25585447')
+synDelete('syn25585924')
 
 createAndKnitToFolderEntity = function (file, parentId, folderName, wikiName = NULL, overwrite = FALSE, knitmd = TRUE, ...){
     entity <- synapser::Folder(parentId = parentId, name = folderName)
@@ -36,15 +36,16 @@ createAndKnitToFolderEntity = function (file, parentId, folderName, wikiName = N
 
 
 # Run code and upload results to Synapse
-createAndKnitToFolderEntity(file = "design_MPRA.Rmd",
+knit2synapse::createAndKnitToFolderEntity(file = "design_MPRA.Rmd",
                                           parentId ="syn25585302",
                                           folderName = 'Design of MPRA',
                                           overwrite=TRUE)
 ```
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, echo=FALSE}
 library(data.table)
 library(ggplot2)
+library(viridis)
 library(synapser)
 library(knit2synapse)
 synLogin()
@@ -52,14 +53,12 @@ synLogin()
 knitr::opts_chunk$set(
   echo = FALSE,
   warning=FALSE,
-  message=FALSE,
+  message=TRUE,
   error = FALSE,
   tidy = FALSE,
   dev = c('png', 'pdf'),
   cache = TRUE)
 ```
-
-
 
 
 ```{r synapse.parameters, include=FALSE, cache=TRUE}
@@ -77,23 +76,36 @@ ALL_USED_IDs = c()
 
 
 ```{r read.data}
-# df = fread(synGet('syn23225412')$path) # V1
-df_in = fread(synGet('syn25541885')$path) # V2
-ALL_USED_IDs = c(ALL_USED_IDs, 'syn25541885')
-# df_eQTL = fread(synGet('syn25541913')$path) # V2
+# fine-mapping results
+df_in = fread(synGet('syn25592273')$path) # V2
+ALL_USED_IDs = c(ALL_USED_IDs, 'syn25592273')
+
+# df_eQTL = fread(synGet('syn25592272')$path) # V2
+# ALL_USED_IDs = c(ALL_USED_IDs, 'syn25592272')
 
 # variant positions
-df_positions = fread(synGet('syn25542333')$path) # V2
+df_positions = fread(synGet('syn25592274')$path) # V2
+ALL_USED_IDs = c(ALL_USED_IDs, 'syn25592274')
 colnames(df_positions) = c("Variant", "chrom", "position_hg19", "REF", "ALT")
-ALL_USED_IDs = c(ALL_USED_IDs, 'syn25542333')
-
-# idx = (df_in$Variant %in% df_positions$Variant)
-# table(idx)
-# df_in$Variant[which(!idx)][1:10]
 
 df = merge(df_in, df_positions, by='Variant')
 ```
 
+```{r ATACseq, message=FALSE}
+library(GenomicRanges)
+
+# Create snATAC-seq data liftOver to hg19
+gr.lst = readRDS( synGet('syn25612085')$path)
+
+# Get GenomicRanges from eQTL variants
+gr.eQTL = with(df, GRanges(Chr, IRanges(position_hg19, position_hg19, name=Variant)))
+
+# add columns indicating presence in ATAC peaks
+for(cellType in names(gr.lst) ){
+
+  df[[paste0("ATAC_",cellType)]] = overlapsAny(gr.eQTL, gr.lst[[cellType]])
+}
+```
 
 # Count variants
 ```{r count.variants}
@@ -139,10 +151,13 @@ ggplot(df.count, aes(x,y, color=order)) + geom_line() + theme_bw() + xlab("Poste
 
 # Select variants
 ## PP > 0.1
-```{r filter, fig.width=5, fig.height=5}
+```{r filter, fig.width=12, fig.height=5}
 df_one = df[eQTL_order==1,]
 
-hist(df_one[PP > .1,PP])
+par(mfrow=c(1,3))
+hist(df_one[PP > .1,PP], xlab="Posterior probability")
+hist(df_one[PP > .1,Dis_to_TSS], xlab="Distance to TSS")
+hist(log10(abs(df_one[PP > .1,Dis_to_TSS])), xlab="Distance to TSS (log10)")
 ```
 
 Number of variants: `r nrow(df_one[PP > .1,])`
@@ -151,31 +166,94 @@ Number of genes: `r df_one[PP > .1,length(unique(Gene))]`
 
 
 ## PP > 0.01, sample 10K variants in proportion to PP
-```{r filter2, fig.width=5, fig.height=5}
+```{r filter2, fig.width=12, fig.height=5}
 df_one = df[(eQTL_order==1)&(PP > 0.01),]
 
 set.seed(1)
-idx = sample.int(nrow(df_one), 10000, prob=df_one$PP)
+idx = sample.int(nrow(df_one), 20000, prob=df_one$PP)
 
-hist(df_one$PP[idx])
+par(mfrow=c(1,3))
+hist(df_one[idx,PP], xlab="Posterior probability")
+hist(df_one[idx,Dis_to_TSS], xlab="Distance to TSS")
+hist(log10(abs(df_one[idx,Dis_to_TSS])), xlab="Distance to TSS (log10)")
 ```
 
 Number of variants with PP>0.1: `r nrow(df_one[idx,][PP > .1,])`
 
 Number of genes: `r df_one[idx,][PP > .1,length(unique(Gene))]`
 
+# Evaluate retention rate at increasing number of variants
+Here, variants are selected in proprotion to their posterior probability.
 
-```{r storeResults}
+With > 20-30K variants, most of the high-scoring variants are included, and the remaining available MPRA sequences are devoted to low-scoring variants.
 
+```{r test, fig.width=5, fig.width=5}
+
+n_array =  c(1:6)*10000
+idx.lst = lapply( n_array, function(n){
+  sample.int(nrow(df_one), n, prob=df_one$PP)
+})
+names(idx.lst) = n_array
+
+df_stats = lapply( n_array, function(n){
+
+  idx = idx.lst[[as.character(n)]] 
+
+  xvalue = seq(0.01, 1, length.out=100)
+  df_stats = lapply(xvalue, function(x){
+    # fraction of variance that pass cutoff
+    exceed = nrow(df_one[idx,][PP > x,])
+    frac = exceed / nrow(df_one[PP > x,])
+
+    # fraction of variance in ATAC-seq peaks
+    j = grep("ALT", colnames(df_one))
+    counts = apply(df_one[idx,][PP > x,(j+1):ncol(df_one)], 2, sum)
+    data.frame(n, x, frac, exceed, t(counts))
+  })
+  do.call(rbind, df_stats) 
+})
+df_stats = do.call(rbind, df_stats)
+
+ggplot(df_stats, aes(x, frac, color=factor(n))) + geom_line() + theme_classic() + xlab('Posterior probability cutoff') + ylab("Fraction of variants retained") + xlim(0, 1) + ylim(0, 1) + scale_color_viridis_d("# of variants") + theme(aspect.ratio=1)
+```
+
+For each cell type in the snATAC-seq from [Corces, et al. 2020](https://www.nature.com/articles/s41588-020-00721-x) and [GSE147672](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE147672), the fraction of variants in ATAC-seq peaks is reported across posterior probability cutoffs.  With fewer variants in the MPRA, more high scoring variants are selected, and these are more likely to be in ATAC peaks.
+
+```{r ATAC.integrate, fig.width=9, fig.height=9}
+
+df_melt = reshape2::melt(df_stats, id.vars=c('n', 'x', "exceed", "frac"))
+
+ggplot(df_melt, aes(x, value/exceed, color=factor(n))) + geom_line() + theme_classic() + facet_wrap(~variable, ncol=3) + xlab('Posterior probability cutoff') + ylab("Fraction of variants exceeding PIP cutoff in ATAC peaks") + scale_color_viridis_d(name = "# of variants") + theme(aspect.ratio=1)
+```
+
+Here, the fration of *total* variants is show.  
+
+```{r ATAC.integrate2, fig.width=9, fig.height=9}
+
+df_melt = reshape2::melt(df_stats, id.vars=c('n', 'x', "exceed", "frac"))
+
+ggplot(df_melt, aes(x, value/n, color=factor(n))) + geom_line() + theme_classic() + facet_wrap(~variable, ncol=3) + xlab('Posterior probability cutoff') + ylab("Fraction of total variants in ATAC peaks") + scale_color_viridis_d(name = "# of variants") + theme(aspect.ratio=1)
+```
+
+```{r storeResults, eval=FALSE}
 # Code
 CODE <- Folder(name = "Design of MPRA", parentId = 'syn25585302')
 CODE <- synStore(CODE)
 
-write.table(df_one[idx,], file = 'MPRA_BREMA_variants.tsv', sep = '\t', row.names=FALSE, quote=FALSE)
+sapply( names(idx.lst), function(n){
 
-COV_OBJ = synapser::File('MPRA_BREMA_variants.tsv', name = 'MPRA_BREMA_variants.tsv', parentId = CODE$properties$id)
-COV_OBJ = synStore(COV_OBJ, used = ALL_USED_IDs, activityName = activityName, 
-                   executed = thisFile, activityDescription = activityDescription)
+  file = paste0('MPRA_BREMA_variants_', n, '.tsv')
+
+  idx = idx.lst[[as.character(n)]] 
+  
+  write.table(df_one[idx,], file = file, sep = '\t', row.names=FALSE, quote=FALSE)
+  file.gz = R.utils::gzip(file, overwrite=TRUE)
+
+  # Upload file
+  COV_OBJ = synapser::File(file.gz, name = file.gz, parentId = CODE$properties$id)
+  COV_OBJ = synStore(COV_OBJ, used = ALL_USED_IDs, activityName = activityName, 
+                     executed = thisFile, activityDescription = activityDescription)
+})
 ```
 
 
@@ -183,11 +261,8 @@ COV_OBJ = synStore(COV_OBJ, used = ALL_USED_IDs, activityName = activityName,
 [markdown](`r thisFile`)
 
 
-
-
-
-
-
+# TODO 
+@Biao is providing effect size.
 
 
 
