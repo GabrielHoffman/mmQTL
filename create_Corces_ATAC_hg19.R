@@ -35,8 +35,7 @@ PEAKFILES_CORCES1 = list(
   "21_Oligodendrocytes"=file.path(PEAKFILES_CORCES1_ROOT, "Cluster21.overlap.optimal.narrowPeak.gz"),
   "22_Oligodendrocytes"=file.path(PEAKFILES_CORCES1_ROOT, "Cluster22.overlap.optimal.narrowPeak.gz"),
   "23_Oligodendrocytes"=file.path(PEAKFILES_CORCES1_ROOT, "Cluster23.overlap.optimal.narrowPeak.gz"),
-  "24_Microglia"=file.path(PEAKFILES_CORCES1_ROOT, "Cluster24.overlap.optimal.narrowPeak.gz")
-)
+  "24_Microglia"=file.path(PEAKFILES_CORCES1_ROOT, "Cluster24.overlap.optimal.narrowPeak.gz"))
 ​
 # chain for liftOver
 path = system.file(package="liftOver", "extdata", "hg38ToHg19.over.chain")
