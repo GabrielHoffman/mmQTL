@@ -79,16 +79,5 @@ PEAKS_MERGED_GR$OPCs = GenomicRanges::union(PEAKS_GR$corcesOpt_8_OPCs, GenomicRa
 PEAKS_MERGED_GR$Astrocytes = GenomicRanges::union(PEAKS_GR$corcesOpt_13_Astrocytes_Unclassified, GenomicRanges::union(PEAKS_GR$corcesOpt_14_Nigral_Astrocytes, GenomicRanges::union(PEAKS_GR$corcesOpt_15_Isocortical_Astrocytes, GenomicRanges::union(PEAKS_GR$corcesOpt_16_Striatal_Astrocytes, PEAKS_GR$corcesOpt_17_Astrocytes_Unclassified))))
 PEAKS_MERGED_GR$Oligodendrocytes = GenomicRanges::union(PEAKS_GR$corcesOpt_19_Oligodendrocytes, GenomicRanges::union(PEAKS_GR$corcesOpt_20_Oligodendrocytes, GenomicRanges::union(PEAKS_GR$corcesOpt_21_Oligodendrocytes, GenomicRanges::union(PEAKS_GR$corcesOpt_22_Oligodendrocytes, PEAKS_GR$corcesOpt_23_Oligodendrocytes))))
 PEAKS_MERGED_GR$Microglia = PEAKS_GR$corcesOpt_24_Microglia
-​
+
 saveRDS(PEAKS_MERGED_GR, file="Corces_hg19_merged.RDS")
-
-
-
-
-
-
-
-
-
-
-
