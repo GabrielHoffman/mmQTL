@@ -59,8 +59,8 @@ for(file in names(PEAKFILES_CORCES1)) {
 	peakset = reduce(makeGRangesFromDataFrame(fileDf))
 
 	# liftOver hg38 -> hg19
-	seqlevelsStyle(gr) = "UCSC"  # necessary
-	gr_hg19 = liftOver(gr, ch)
+	seqlevelsStyle(peakset) = "UCSC"  # necessary
+	gr_hg19 = liftOver(peakset, ch)
 	class(gr_hg19)
 	gr_hg19 = unlist(gr_hg19)
 
