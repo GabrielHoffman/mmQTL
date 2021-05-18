@@ -8,7 +8,7 @@
 
 # ml udunits proj gdal geos pandoc; cd build2/mmQTL/
 
-
+suppressPackageStartupMessages({
 library(data.table)
 library(ggplot2)
 library(ggrepel)
@@ -21,9 +21,13 @@ library(knitr)
 library(kableExtra)
 library(decorate)
 library(MeSH.db)
+library(synapser)
+
+synLogin()
 
 source("./make_plots.R")
 source("./plot_genes.R")
+})
  # make_plot( ensGene, ord=1 ) 
 
 
@@ -40,33 +44,51 @@ if( system("echo $HOSTNAME", intern=TRUE) == "glia.local"){
 	folder = "/sc/arion/projects/CommonMind/hoffman/MMQTL/MMQTL_eQTL_signal_and_finemapping_result/"
 }
 
-df_snp = fread( paste0(folder, 'variants_position_from_MMQTL_meta-eQTL.tsv.gz') )
+# df_snp = fread( paste0(folder, 'variants_position_from_MMQTL_meta-eQTL.tsv.gz') )
+# colnames(df_snp) = c("ID", "Chr", "Position", "REF", "ALT")
+# setkey(df_snp, 'ID')
+
+df_snp = fread(synGet('syn25592274')$path)
 colnames(df_snp) = c("ID", "Chr", "Position", "REF", "ALT")
 setkey(df_snp, 'ID')
 
-df_eqtl = fread( paste0(folder, 'merge_MMQTL_eQTL_signal.tsv.gz'))
-df_eqtl[,Chr := c()]
-df_eqtl[,Z_score_fixed:=c()]
+# df_eqtl = fread( paste0(folder, 'merge_MMQTL_eQTL_signal.tsv.gz'))
+# df_eqtl[,Chr := c()]
+# df_eqtl[,Z_score_fixed:=c()]
+# setkey(df_eqtl, "Variant")
+# gc()
+# df_eqtl[,p.value := 2*pnorm(Z_score_random, 0, 1, lower.tail=FALSE)]
+
+df_eqtl = fread(synGet('syn25592272')$path)
+df_eqtl[,z_score_fixed:=NULL]
+df_eqtl[,z_score_random:=NULL]
+df_eqtl[,p_fixed:=NULL]
+df_eqtl[,log10.p.value := -log10(p_random),]
+df_eqtl[,p_random:=NULL]
+df_eqtl[,Dis_to_TSS:=NULL]
+df_eqtl[,Chr:=NULL]
 setkey(df_eqtl, "Variant")
 gc()
-# df_eqtl[,p.value := 2*pnorm(Z_score_random, 0, 1, lower.tail=FALSE)]
+
 
 # pnorm(2, 0, 1, lower.tail=FALSE, log.p=TRUE) / log(10) + log10(2)
 # log10(2*pnorm(2, 0, 1, lower.tail=FALSE)) 
 # create log10 p directly
-df_eqtl[,log10.p.value := -1*pnorm(Z_score_random, 0, 1, lower.tail=FALSE, log.p=TRUE) / log(10) - log10(2)]
-df_eqtl[,Z_score_random:=c()]
-gc()
+# df_eqtl[,log10.p.value := -1*pnorm(Z_score_random, 0, 1, lower.tail=FALSE, log.p=TRUE) / log(10) - log10(2)]
+# df_eqtl[,Z_score_random:=c()]
+# gc()
 
 # table(df_eqtl$Variant %in% df_snp$ID)
 df_eqtl = merge(df_eqtl, df_snp, by.x="Variant", by.y="ID")
 setkey(df_eqtl, Position)
 gc()
 
-df_finemap = fread( paste0(folder, 'merge_MMQTL_eGenes_fine-mapping.tsv.gz') )
+df_finemap = fread(synGet('syn25592273')$path)
+# df_finemap = fread( paste0(folder, 'merge_MMQTL_eGenes_fine-mapping.tsv.gz') )
 # df_finemap = fread( paste0(folder, 'merge_MMQTL_eGenes_fine-mapping_random_effect.tsv.gz') )
 df_finemap[,Chr := c()]
-colnames(df_finemap)[4] = "PIP"
+# colnames(df_finemap)[4] = "PIP"
+colnames(df_finemap)[colnames(df_finemap)=="PP"] = "PIP"
 
 # table(df_finemap$Variant %in% df_snp$ID)
 df_finemap = merge(df_finemap, df_snp, by.x="Variant", by.y="ID")
@@ -293,6 +315,7 @@ df_show$clusters[is.na(df_show$clusters)] = ''
 
 asdfasdfasdf
 
+setwd("v2/figures")
 
 # Write images to pdf
 for( ensGene in unique(df_show$Gene) ){
