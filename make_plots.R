@@ -19,8 +19,8 @@ make_plot = function( ensGene, window = 5e5, ord=1, non_coding=FALSE, showCondit
 	# 		, error = function(e) '')
 
 	# get gene name from ENSEMBL id
-	geneInfo = select(EnsDb.Hsapiens.v75, keys=ensGene, keytype="GENEID", column=c('GENENAME', 'GENEBIOTYPE'))
-	geneSymbol = geneInfo$GENENAME
+	# geneInfo = select(EnsDb.Hsapiens.v75, keys=ensGene, keytype="GENEID", column=c('GENENAME', 'GENEBIOTYPE'))
+	# geneSymbol = geneInfo$GENENAME
 
 	# get location of top fine-mapped eQTL SNP	
 	df_fm = df_finemap[(Gene == ensGene) & (eQTL_order == ord),]
