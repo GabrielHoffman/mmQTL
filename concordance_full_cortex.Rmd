@@ -20,8 +20,10 @@ params:
 <!---
 cd /Users/gabrielhoffman/workspace/repos/mmQTL_plots
 
-R
+cd /sc/arion/work/hoffmg01/mmQTL
 
+R
+system("git ml")
 rmarkdown::render("concordance_full_cortex.Rmd")
 
 
@@ -50,7 +52,7 @@ knitr::opts_chunk$set(
 ```
 
 
-```{r function}
+```{r function.a}
 # Compute two dimensional density
 get_density <- function(x, y, n = 250) {
   dens <- MASS::kde2d(x = x, y = y, n = n)
@@ -74,7 +76,8 @@ plotScatterDensity = function(value1, value2){
 	
   # Scatter plot colored by density
   ggplot(df, aes(value1, value2, color=density)) + geom_point(size=.4) + theme_classic(16) + theme(aspect.ratio=1, legend.position="bottom", plot.title = element_text(hjust = 0.5)) + geom_abline(color="red") + geom_vline(xintercept=0, col="grey40", linetype="dashed") + geom_hline(yintercept=0, col="grey40", linetype="dashed") + xlim(-lim, lim) + ylim(-lim, lim) + scale_color_viridis() + geom_smooth(method="lm", se=FALSE, color="darkorange")
-}```
+}
+```
 
 ```{r read.full}
 
