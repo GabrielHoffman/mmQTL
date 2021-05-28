@@ -62,7 +62,7 @@ get_density <- function(x, y, n = 250) {
   ii <- cbind(ix, iy)
   return(dens$z[ii])
 }
-
+  
 # make scatter plot with 2D density using viridis colors
 plotScatterDensity = function(value1, value2){
 
