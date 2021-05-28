@@ -204,10 +204,10 @@ ggplot(df_cor, aes(factor(eQTL_order), Correlation)) + geom_bar(stat="identity")
 
 
 ```{r plot.fm2}
-plotScatterDensity( df_merge[eQTL_order==1,]$PP.x, df_merge[eQTL_order==1,]$PP.y) +
+plotScatterDensity( df_merge_fm[eQTL_order==1,]$PP.x, df_merge[eQTL_order==1,]$PP.y) +
 	scale_x_continuous(expand=c(0,0), limits=c(-0.01,1)) +
 	scale_y_continuous(expand=c(0,0), limits=c(-0.01,1))
 
-cor(df_merge$PP.x, df_merge$PP.y)
+cor(df_merge_fm$PP.x, df_merge_fm$PP.y)
 
 ```
