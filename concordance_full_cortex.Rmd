@@ -1,0 +1,168 @@
+---
+title: "Full vs cortex replication stats"
+author:
+- name: "[Gabriel Hoffman](http://gabrielhoffman.github.io)$^{1}$"
+  affiliation: | 
+    [1] Icahn School of Medicine at Mount Sinai, New York
+date: "Run on `r Sys.time()`"
+documentclass: article
+output:
+  html_document:
+    toc: true
+    toc_float: true
+params:
+  upload: FALSE
+---
+
+
+
+
+<!---
+cd /Users/gabrielhoffman/workspace/repos/mmQTL_plots
+
+R
+
+rmarkdown::render("concordance_full_cortex.Rmd")
+
+
+--->
+ 
+
+```{r setup, echo=FALSE}
+suppressPackageStartupMessages({
+library(data.table)
+library(synapser)
+library(ggplot2)
+library(qvalue)
+library(viridis)
+synLogin()
+})
+synLogin()
+
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning=FALSE,
+  message=FALSE,
+  error = FALSE,
+  tidy = FALSE,
+  dev = c('png', 'pdf'),
+  cache = TRUE)
+```
+
+
+```{r function}
+# Compute two dimensional density
+get_density <- function(x, y, n = 250) {
+  dens <- MASS::kde2d(x = x, y = y, n = n)
+  ix <- findInterval(x, dens$x)
+  iy <- findInterval(y, dens$y)
+  ii <- cbind(ix, iy)
+  return(dens$z[ii])
+}
+
+# make scatter plot with 2D density using viridis colors
+plotScatterDensity = function(value1, value2){
+
+  # convert two vectors to a data frame
+	df = data.frame(cbind(value1, value2))
+
+  # determine limits of the plot
+	lim = with(df, max(abs(c(value1, value2))))
+  
+  # Compute 2D density
+	df$density <- get_density(df$value1, df$value2, n = 100)
+	
+  # Scatter plot colored by density
+  ggplot(df, aes(value1, value2, color=density)) + geom_point(size=.4) + theme_classic(16) + theme(aspect.ratio=1, legend.position="bottom", plot.title = element_text(hjust = 0.5)) + geom_abline(color="red") + geom_vline(xintercept=0, col="grey40", linetype="dashed") + geom_hline(yintercept=0, col="grey40", linetype="dashed") + xlim(-lim, lim) + ylim(-lim, lim) + scale_color_viridis() + geom_smooth(method="lm", se=FALSE, color="darkorange")
+}```
+
+```{r read.full}
+
+# full dataset
+##############
+df_full = fread(synGet('syn25592272')$path) # V2
+df_cortex = fread(synGet('syn25592269')$path) # V2
+
+df_merge = merge( df_full, df_cortex, by=c("Gene", "Variant", "eQTL_order"))
+
+get_pi1 = function(p){
+
+	tryCatch({
+		1 - qvalue(p[p<0.96])$pi0
+		}, error = function(e){
+		NA
+		})
+}
+
+get_pi1_sem = function(p, nboot=20){
+
+	pi1 = sapply(1:nboot, function(i){
+		idx = sample.int(length(p), length(p), replace=TRUE)
+		get_pi1(p[idx])
+	})
+	sd(pi1) / sqrt(nboot)
+}
+
+
+df_cor = lapply( 1:8, function(x){
+	message(x)
+
+	# pi1_xy_fixed = df_merge[(eQTL_order==x) &(p_fixed.x < 1e-6), get_pi1(p_fixed.y)]
+	# pi1_yx_fixed = df_merge[(eQTL_order==x) &(p_fixed.y < 1e-6), get_pi1(p_fixed.x)]
+
+	pi1_xy_random = df_merge[(eQTL_order==x) &(p_random.x < 1e-6), get_pi1(p_random.y)]
+	pi1_yx_random = df_merge[(eQTL_order==x) &(p_random.y < 1e-6), get_pi1(p_random.x)]
+	# pi1_xy_random.sem = df_merge[(eQTL_order==x) &(p_random.x < 1e-6), get_pi1_sem(p_random.y)]
+	# pi1_yx_random.sem = df_merge[(eQTL_order==x) &(p_random.y < 1e-6), get_pi1_sem(p_random.x)]
+
+	data.frame(eQTL_order = x, 
+				# pi1_xy_fixed = pi1_xy_fixed,
+				# pi1_yx_fixed = pi1_yx_fixed,
+				pi1_xy_random = pi1_xy_random, 
+				pi1_yx_random = pi1_yx_random)
+				# pi1_xy_random.sem = pi1_xy_random.sem,
+				# pi1_yx_random.sem = pi1_yx_random.sem)
+	})
+df_cor = do.call(rbind, df_cor)
+
+df_melt = reshape::melt(df_cor[,c('eQTL_order', 'pi1_xy_random' ,'pi1_yx_random')], id.vars="eQTL_order")
+```
+
+```{r plot.eQTL.concordance}
+ggplot(df_melt, aes(factor(eQTL_order), value, fill=variable)) + geom_bar(stat="identity", position="dodge") + theme_classic() + scale_y_continuous(expand=c(0, 0), limits=c(NA, 1)) +  xlab("eQTL degree")
+```
+
+
+
+```{r read.finemap}
+# finemapping
+#############
+df_full_fm = fread(synGet('syn25592273')$path) # V2
+df_cortex_fm = fread(synGet('syn25592270')$path) # V2
+
+df_merge_fm = merge( df_full_fm, df_cortex_fm, by=c("Gene", "Variant", "eQTL_order"), all=TRUE)
+
+df_merge_fm[is.na(PP.x), PP.x:=0]
+df_merge_fm[is.na(PP.y), PP.y:=0]
+```
+```{r plot.finemap}
+df_cor = lapply( 1:10, function(x){
+	r = with(df_merge_fm[eQTL_order==x,], cor(PP.x, PP.y))
+	n = nrow(df_merge_fm[eQTL_order==x,])
+	se = sqrt((1-r^2) / (n-2))
+	data.frame(eQTL_order = x, Correlation = r, se = se)
+	})
+df_cor = do.call(rbind, df_cor)
+
+ggplot(df_cor, aes(factor(eQTL_order), Correlation)) + geom_bar(stat="identity") + theme_classic() + scale_y_continuous(expand=c(0, 0), limits=c(0, .78)) + geom_errorbar(aes(ymin=Correlation - 1.96*se, ymax=Correlation + 1.96*se), width=.1) + xlab("eQTL degree")
+```
+
+
+```{r plot.fm2}
+plotScatterDensity( df_merge[eQTL_order==1,]$PP.x, df_merge[eQTL_order==1,]$PP.y) +
+	scale_x_continuous(expand=c(0,0), limits=c(-0.01,1)) +
+	scale_y_continuous(expand=c(0,0), limits=c(-0.01,1))
+
+cor(df_merge$PP.x, df_merge$PP.y)
+
+```
