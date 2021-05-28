@@ -73,7 +73,7 @@ plotScatterDensity = function(value1, value2){
 	lim = with(df, max(abs(c(value1, value2))))
   
   # Compute 2D density
-	df$density <- get_density(df$value1, df$value2, n = 100)
+	df$density <- 1 = #get_density(df$value1, df$value2, n = 100)
 	
   # Scatter plot colored by density
   ggplot(df, aes(value1, value2, color=density)) + geom_point(size=.4) + theme_classic(16) + theme(aspect.ratio=1, legend.position="bottom", plot.title = element_text(hjust = 0.5)) + geom_abline(color="red") + geom_vline(xintercept=0, col="grey40", linetype="dashed") + geom_hline(yintercept=0, col="grey40", linetype="dashed") + xlim(-lim, lim) + ylim(-lim, lim) + scale_color_viridis() + geom_smooth(method="lm", se=FALSE, color="darkorange")
