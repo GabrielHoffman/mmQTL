@@ -88,7 +88,9 @@ df_full = fread(synGet('syn25592272')$path) # V2
 df_cortex = fread(synGet('syn25592269')$path) # V2
 
 df_merge = merge( df_full, df_cortex, by=c("Gene", "Variant", "eQTL_order"))
+```
 
+```{r full.analysis}
 get_pi1 = function(p){
 
 	tryCatch({
