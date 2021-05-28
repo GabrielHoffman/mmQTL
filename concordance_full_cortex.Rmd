@@ -148,7 +148,7 @@ df_melt = reshape::melt(df_cor[,c('eQTL_order', 'pi1_xy_random' ,'pi1_yx_random'
 ```
 
 ```{r plot.eQTL.concordance}
-
+df_melt = data.table(df_melt)[eQTL_order<8,]
 df_melt[variable=="pi1_xy_random", variable:="Full"]
 df_melt[variable=="pi1_yx_random", variable:="Cortex"]
 
@@ -178,6 +178,28 @@ df_cor = lapply( 1:10, function(x){
 df_cor = do.call(rbind, df_cor)
 
 ggplot(df_cor, aes(factor(eQTL_order), Correlation)) + geom_bar(stat="identity") + theme_classic() + scale_y_continuous(expand=c(0, 0), limits=c(0, .78)) + geom_errorbar(aes(ymin=Correlation - 1.96*se, ymax=Correlation + 1.96*se), width=.1) + xlab("eQTL degree")
+```
+
+# primary is highest 
+# define the cumulative best PP
+
+
+```{r plot.finemap2}
+setkey(df_merge_fm, "Gene", "Variant", "eQTL_order")
+
+# Cumulative max
+df_merge_fm2 = df_merge_fm[, data.table(PP.x, PP.y, PP.x.cm = cummax(PP.x), PP.y.cm = cummax(PP.y)), by=c("Gene", "Variant", "eQTL_order")]
+
+
+df_cor = lapply( 1:10, function(x){
+	r = with(df_merge_fm2[eQTL_order==x,], cor(PP.x.cm, PP.y.cm))
+	n = nrow(df_merge_fm2[eQTL_order==x,])
+	se = sqrt((1-r^2) / (n-2))
+	data.frame(eQTL_order = x, Correlation = r, se = se)
+	})
+df_cor = do.call(rbind, df_cor)
+
+ggplot(df_cor, aes(factor(eQTL_order), Correlation)) + geom_bar(stat="identity") + theme_classic() + scale_y_continuous(expand=c(0, 0), limits=c(0, .78)) + geom_errorbar(aes(ymin=Correlation - 1.96*se, ymax=Correlation + 1.96*se), width=.1) + xlab("eQTL degree") 
 ```
 
 
