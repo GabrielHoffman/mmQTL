@@ -23,7 +23,7 @@ cd /Users/gabrielhoffman/workspace/repos/mmQTL_plots
 cd /sc/arion/work/hoffmg01/mmQTL
 
 R
-system("git pull")
+system("ml git; git pull")
 rmarkdown::render("concordance_full_cortex.Rmd")
 
 
@@ -152,7 +152,7 @@ df_melt = data.table(df_melt)[eQTL_order<8,]
 df_melt[variable=="pi1_xy_random", variable:="Full"]
 df_melt[variable=="pi1_yx_random", variable:="Cortex"]
 
-ggplot(df_melt, aes(factor(eQTL_order), value, fill=variable)) + geom_bar(stat="identity", position="dodge") + theme_classic() + scale_y_continuous(expand=c(0, 0), limits=c(NA, 1)) +  xlab("eQTL degree") + scale_fill_brewer(palette="Set1")
+ggplot(df_melt, aes(factor(eQTL_order), value, fill=variable)) + geom_bar(stat="identity", position="dodge") + theme_classic() + scale_y_continuous(expand=c(0, 0), limits=c(NA, 1)) +  xlab("eQTL degree") + ylab(bquote(Storeys~pi[1])) + scale_fill_brewer(name="Discovery", palette="Set1")
 ```
 
 
