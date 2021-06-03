@@ -229,9 +229,12 @@ df_merge = df_merge[order(PIP.prod, decreasing=TRUE),]
 #                      column="SYMBOL",
 #                      keytype="ENSEMBL")
 
-geneInfo = select(EnsDb.Hsapiens.v75, keys=df_merge$Gene, keytype="GENEID", column=c('GENENAME'))
+geneUnique = unique(df_merge$Gene)
+geneUnique = geneUnique[!is.na(geneUnique)]
+
+geneInfo = select(EnsDb.Hsapiens.v75, keys= geneUnique, keytype="GENEID", column=c('GENENAME'))
 colnames(geneInfo) = c("Gene", "Symbol")	
-df_merge = merge(df_merge, geneInfo, by="Gene")
+df_merge = merge(df_merge, geneInfo, by="Gene", all.x=TRUE)
 
 
 
