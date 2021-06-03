@@ -6,7 +6,11 @@
 # Alz fine map
 # https://www.medrxiv.org/content/10.1101/2020.01.22.20018424v1.full.pdf
 
-# ml udunits proj gdal geos pandoc; cd build2/mmQTL/
+# ml udunits proj gdal geos pandoc git; cd build2/mmQTL/; git pull
+# source("run_plots.R")
+
+# Change filt path of images
+# sed -i 's/mmqtl/brema\/v2\/figures/g' *.html
 
 suppressPackageStartupMessages({
 library(data.table)
@@ -213,7 +217,7 @@ df_causaldb = causalDB[["credible_set"]]
 df_causaldb[,Variant:=paste0('rs', rsID)]
 
 # merge eQTL finemaping with causalDB
-df_merge = merge(df_finemap, df_causaldb, by="Variant")
+df_merge = merge(df_finemap, df_causaldb, by="Variant", all=TRUE)
 
 # merge with GWAS descriptions
 df_merge = merge(df_merge, causalDB[['meta_info']], by.x="meta_id", by.y="ID")
@@ -315,7 +319,7 @@ df_show$clusters[is.na(df_show$clusters)] = ''
 
 asdfasdfasdf
 
-setwd("v2/figures")
+setwd("v2")
 
 # Write images to pdf
 for( ensGene in unique(df_show$Gene) ){
@@ -338,9 +342,17 @@ for( ensGene in unique(df_show$Gene) ){
 
 # CACNA1C has two causal variants
 ensGene = 'ENSG00000151067'
-make_plot( ensGene, ord=1, showConditional= TRUE,window=2e6 )
-make_plot( ensGene, ord=2, showConditional= TRUE,window=2e6 )
+make_plot( ensGene, ord=1, showConditional= TRUE,window=2e5 )
+make_plot( ensGene, ord=2, showConditional= TRUE,window=2e5 )
 
+ensGene = 'ENSG00000140564'
+
+make_plot( ensGene, ord=1, window=2e5 )
+
+
+
+# source("../make_plots.R")
+# make_plot( ensGene, ord=1, window=2e5 )
 
 
 # rs240066
@@ -553,7 +565,7 @@ length(table(tab_temp$Variant))
 length(table(tab_temp$Gene))
 
 # count all traits
-df2 =  read.delim("All_eQTL_GWAS.tsv", sep="\t", header=TRUE)
+df2 =  read.delim("All_eQTL_GWAS.tsv.gz", sep="\t", header=TRUE)
 nrow(df2)
 length(table(df2$Trait))
 length(table(df2$Variant))
@@ -713,13 +725,14 @@ tab2 = tab[idx,]
 
 gene = "THOC7"
 
-folder = paste0("/Users/gabrielhoffman/Downloads/p_value_for_Gabriel/", gene,'/')
+# folder = paste0("/Users/gabrielhoffman/Downloads/p_value_for_Gabriel/", gene,'/')
+folder = "/Users/gabrielhoffman/Dropbox/projects/mmQTL/v2/from_Biao/Prepare_input_file_for_Gabriel_to_mmQTL_plot/Figure1/Figure1D/"
 
 df_window = lapply( c('1', '7', '13', 'meta'), function(suffix){
 
 	# For THOC
-	file = paste0(folder,ifelse( suffix == "meta", "p_value_Meta", paste0("p_value_", suffix,"_GTEx")))
-	file2 = paste0(folder, "finemapping_result_to_Gabriel/credible_set_GTEx_", suffix)
+	file = paste0(folder,ifelse( suffix == "meta", "p_value_for_THOC7_meta", paste0("p_value_for_THOC7_", suffix,"_GTEx")))
+	file2 = paste0(folder, ifelse(suffix == "meta", "finemapping_result_in_", "finemapping_result_in_GTEx_"), suffix)
 
 	# if( suffix == "meta"){
 	# 	file = paste0(folder,"eQTL_signal_in_meta")
@@ -730,11 +743,13 @@ df_window = lapply( c('1', '7', '13', 'meta'), function(suffix){
 	# }
 
 	df_ex = fread( file )
+	if( ncol(df_ex) == 4) df_ex = df_ex[,-1]
 	df_ex$Description = suffix
-	colnames(df_ex) = c("Chr", "Variant", "Position", "p.value", "Description")
+	colnames(df_ex) = c("Variant", "beta", "p.value", "Description")
+	df_ex = merge(df_ex, df_snp, by.x="Variant", by.y="ID")
 
-	df_candSet = fread( file2 )
-	colnames(df_candSet) = c('Variant', "PIP1", "PIP2")
+	df_candSet = fread( file2, header=FALSE )
+	colnames(df_candSet) = c('Variant')
 	df_ex$inCandSet = "no"
 	df_ex[Variant %in% df_candSet$Variant,inCandSet:="yes"]
 	df_ex

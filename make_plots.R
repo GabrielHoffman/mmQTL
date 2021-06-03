@@ -52,6 +52,7 @@ make_plot = function( ensGene, window = 5e5, ord=1, non_coding=FALSE, showCondit
 	# linear interpolation evaluate at points in resComposite
 	app = approx( df_recomb_sub$position, df_recomb_sub$recomb_rate, df_window$Position )
 	df_window$rate = pmin(app$y, 100) # cap local rate at 100
+	df_window$log10.p.value = pmin(300,df_window$log10.p.value)
 
 	ymax = max(df_window$log10.p.value)
 	ymax.rate = ymax
@@ -85,7 +86,7 @@ make_plot = function( ensGene, window = 5e5, ord=1, non_coding=FALSE, showCondit
 	df_coloc = df_coloc[meta_id %in% df_select[max>0.01,meta_id],]
 
 	# keep GWAS fine mapping for these traits
-	df_pip = df_pip[meta_id %in% df_coloc$meta_id,]
+	df_pip = df_pip[(meta_id %in% df_coloc$meta_id) | (Trait %in% df_coloc$Trait),]
 	df_pip$Trait = factor(df_pip$Trait)
 
 	if( nrow(df_pip) > 0){

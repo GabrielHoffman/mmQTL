@@ -64,19 +64,13 @@ setkey(df_finemap, 'Variant')
 df_finemap = merge(df_finemap, df_snp, by.x="Variant", by.y="ID")
 setkey(df_finemap, Position)
 
-ensGene = 'Peak_74506'
+# ensGene = 'Peak_74506'
 
-df_finemap[Gene == ensGene,]
-df_eqtl[Gene == ensGene,]
-
-
-table(unique(df_finemap$Gene) %in% unique(df_eqtl$Gene))
+# df_finemap[Gene == ensGene,]
+# df_eqtl[Gene == ensGene,]
 
 
-
-
-	
-
+# table(unique(df_finemap$Gene) %in% unique(df_eqtl$Gene))
 
 
 

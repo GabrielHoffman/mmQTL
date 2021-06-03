@@ -286,6 +286,7 @@ df_html = df_show %>%
 	mutate('GWAS prob' = format(FINEMAP, digits=3)) %>%
 	mutate('Shared prob' = format(prob.coloc, digits=3)) 
 
+setwd('~/work')
 
 dir.create( paste0(folder, "../html/"), recursive=TRUE )
 

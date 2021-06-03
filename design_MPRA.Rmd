@@ -25,7 +25,7 @@ library(synapser)
 library(knit2synapse)
 synLogin()
 
-synDelete('syn25612506')
+synDelete('syn25613250')
 
 
 # Run code and upload results to Synapse
