@@ -223,7 +223,7 @@ if( ! dir.exists(folder) ){
 
 df_show_ad = df_show[grep("lzh", df_show$Trait),]
 
-write.csv(df_show_ad, file="finemap_caQTL.csv", row.names=FALSE, quote=FALSE)
+write.csv(df_show_ad, file=paste0(folder,"finemap_caQTL.csv"), row.names=FALSE, quote=FALSE)
 
 
 # Write images to pdf
@@ -234,7 +234,7 @@ for( ensGene in unique(df_show_ad$Gene) ){
 
 		file = paste0(ensGene, "_", ord, ".pdf")
 		file = paste0(folder, file)
-		
+
 		ggsave(file, make_plot( ensGene, ord=ord, window=8e4 ), width=6 )
 
 		if( ord > 1 ){
