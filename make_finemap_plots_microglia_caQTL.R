@@ -42,7 +42,7 @@ gc()
 df_eqtl = fread( synGet('syn25000646')$path, header=TRUE )
 df_eqtl[,Chr:=gsub("^chr", '', Chr)]
 colnames(df_eqtl)[colnames(df_eqtl) == 'caQTL_order'] = 'eQTL_order'
-df_eqtl[,log10.p.value := -1*pnorm(Z_score_random, 0, 1, lower.tail=FALSE, log.p=TRUE) / log(10) - log10(2)]
+df_eqtl[,log10.p.value := -1*pnorm(abs(Z_score_fixed), 0, 1, lower.tail=FALSE, log.p=TRUE) / log(10) - log10(2)]
 df_eqtl[,Z_score_fixed:=c()]
 df_eqtl[,Z_score_random:=c()]
 colnames(df_eqtl)[colnames(df_eqtl)=="Peak"] = "Gene"
@@ -235,7 +235,7 @@ for( ensGene in unique(df_show_ad$Gene) ){
 		file = paste0(ensGene, "_", ord, ".pdf")
 		file = paste0(folder, file)
 
-		ggsave(file, make_plot( ensGene, ord=ord, window=8e4 ), width=6 )
+		ggsave(file, make_plot( ensGene, ord=ord, window=8e4, non_coding=TRUE ), width=6 )
 
 		if( ord > 1 ){
 			file = paste0(ensGene, "_", ord, "_showConditional.pdf")
