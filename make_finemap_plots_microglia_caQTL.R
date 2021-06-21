@@ -149,7 +149,7 @@ df_causaldb = causalDB[["credible_set"]]
 df_causaldb[,Variant:=paste0('rs', rsID)]
 
 # merge eQTL finemaping with causalDB
-df_merge = merge(df_finemap, df_causaldb, by="Variant")
+df_merge = merge(df_finemap, df_causaldb, by="Variant", all=TRUE)
 
 # merge with GWAS descriptions
 df_merge = merge(df_merge, causalDB[['meta_info']], by.x="meta_id", by.y="ID")
