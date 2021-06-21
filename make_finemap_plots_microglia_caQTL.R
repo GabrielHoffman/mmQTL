@@ -31,7 +31,7 @@ source(paste0(src, "/plot_genes.R"))
 synLogin()
 
 # Read SNP locations
-df_snp = fread( synGet('syn24201358')$path )
+df_snp = fread( synGet('syn24912590')$path )
 colnames(df_snp) = c("Chr", "Position0", "Position", 'ID')
 df_snp[,Position0 := c()]
 df_snp[,Chr:=gsub("^chr", '', Chr)]
@@ -39,7 +39,7 @@ setkey(df_snp, 'ID')
 gc()
 
 # Read xQTL p-values
-df_eqtl = fread( synGet('syn24201360')$path, header=TRUE )
+df_eqtl = fread( synGet('syn25000646')$path, header=TRUE )
 df_eqtl[,Chr:=gsub("^chr", '', Chr)]
 colnames(df_eqtl)[colnames(df_eqtl) == 'caQTL_order'] = 'eQTL_order'
 df_eqtl[,log10.p.value := -1*pnorm(Z_score_random, 0, 1, lower.tail=FALSE, log.p=TRUE) / log(10) - log10(2)]
@@ -55,8 +55,9 @@ setkey(df_eqtl, Position)
 gc()
 
 # Read fine-mapping results
-df_finemap = fread( synGet('syn24201357')$path, header=FALSE)
-colnames(df_finemap) = c("Chr", "Gene", "eQTL_order", "Variant", "PIP")
+df_finemap = fread( synGet('syn24964518')$path)
+# colnames(df_finemap) = c("Chr", "Gene", "eQTL_order", "Variant", "PIP")
+colnames(df_finemap)[colnames(df_finemap)=="PP"] = "PIP"
 df_finemap[,Chr := c()]
 setkey(df_finemap, 'Variant')
 
@@ -215,9 +216,10 @@ df_show = df_show[order(CATEGORY, Trait, PIP.prod, decreasing=TRUE),][,c('MeSH_I
 
 # df_show$clusters[is.na(df_show$clusters)] = ''
 
-folder = "microglia/caqtl/figures/"
-dir.create( folder, recursive=TRUE )
-
+folder = "~/www/mmQTL/microglia/caqtl/figures/"
+if( ! dir.exists(folder) ){
+	dir.create( folder, recursive=TRUE)
+}
 
 df_show_ad = df_show[grep("lzh", df_show$Trait),]
 
@@ -232,7 +234,7 @@ for( ensGene in unique(df_show_ad$Gene) ){
 
 		file = paste0(ensGene, "_", ord, ".pdf")
 		file = paste0(folder, file)
-		# file = paste0("/sc/arion/projects/CommonMind/hoffman/MMQTL/figures/", file)		
+		
 		ggsave(file, make_plot( ensGene, ord=ord, window=8e4 ), width=6 )
 
 		if( ord > 1 ){

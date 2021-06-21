@@ -210,12 +210,14 @@ df_show = merge(df_show, df_sc_unique, by.x="Symbol", by.y="gene", all.x=TRUE)
 df_show$clusters[is.na(df_show$clusters)] = ''
 
 
-folder = "microglia/eqtl/figures/"
-dir.create( folder, recursive=TRUE )
+folder = "~/www/mmQTL/microglia/eqtl/figures/"
+if( ! dir.exists(folder) ){
+	dir.create( folder, recursive=TRUE)
+}
 
 df_show_ad = df_show[grep("lzh", df_show$Trait),]
 
-write.csv(df_show_ad, file="finemap_eQTL.csv", row.names=FALSE, quote=FALSE)
+write.csv(df_show_ad, file=paste0(folder, "finemap_eQTL.csv"), row.names=FALSE, quote=FALSE)
 
 # Write images to pdf
 for( ensGene in unique(df_show_ad$Gene) ){
