@@ -21,7 +21,7 @@ library(synapser)
 
 # ml proj gdal geos pandoc
 # R
-# source("/hpc/users/hoffmg01/build2/mmQTL/make_finemap_plots_microglia_caQTL.R")
+# source("/hpc/users/hoffmg01/www/mmQTL/make_finemap_plots_microglia_caQTL.R")
   
 src = '/hpc/users/hoffmg01/build2/mmQTL'
 
