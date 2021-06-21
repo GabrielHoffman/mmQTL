@@ -215,15 +215,20 @@ df_show = df_show[order(CATEGORY, Trait, PIP.prod, decreasing=TRUE),][,c('MeSH_I
 
 # df_show$clusters[is.na(df_show$clusters)] = ''
 
-
 folder = "microglia/caqtl/figures/"
 dir.create( folder, recursive=TRUE )
 
+
+df_show_ad = df_show[grep("lzh", df_show$Trait),]
+
+write.csv(df_show_ad, file="finemap_caQTL.csv", row.names=FALSE, quote=FALSE)
+
+
 # Write images to pdf
-for( ensGene in unique(df_show$Gene) ){
+for( ensGene in unique(df_show_ad$Gene) ){
 	message(ensGene)
 
-	for(ord in df_show[Gene == ensGene,sort(unique(eQTL_order))] ){
+	for(ord in df_show_ad[Gene == ensGene,sort(unique(eQTL_order))] ){
 
 		file = paste0(ensGene, "_", ord, ".pdf")
 		file = paste0(folder, file)

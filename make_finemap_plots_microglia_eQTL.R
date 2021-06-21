@@ -154,9 +154,13 @@ df_merge = df_merge[order(PIP.prod, decreasing=TRUE),]
 #                      column="SYMBOL",
 #                      keytype="ENSEMBL")
 
+
+geneUnique = unique(df_merge$Gene)
+geneUnique = geneUnique[!is.na(geneUnique)]
+
 geneInfo = select(EnsDb.Hsapiens.v75, keys=df_merge$Gene, keytype="GENEID", column=c('GENENAME'))
 colnames(geneInfo) = c("Gene", "Symbol")	
-df_merge = merge(df_merge, geneInfo, by="Gene")
+df_merge = merge(df_merge, geneInfo, by="Gene", all.x=TRUE)
 
 
 dim(df_merge[PIP.prod > 0.05,])
@@ -187,7 +191,7 @@ df_show = merge(df_merge,
 reg = ".*"
 cutoff = 0.01
 # df_show[prob.coloc > cutoff,]
-df_show = df_show[ PIP.prod> cutoff,][grep(reg, Trait),c('MeSH_ID','CATEGORY', 'Trait','meta_id','Sample_size', 'Consortium/author', 'PMID', 'Year', 'Variant','PIP','FINEMAP', 'PIP.prod', 'prob.coloc','eQTL_order', 'Gene','Symbol')]
+df_show = df_show[ PIP.prod> cutoff,][grep(reg, Trait),]#c('MeSH_ID','CATEGORY', 'Trait','meta_id','Sample_size', 'Consortium/author', 'PMID', 'Year', 'Variant','PIP','FINEMAP', 'PIP.prod', 'prob.coloc','eQTL_order', 'Gene','Symbol')]
 
 
 df_show = df_show[,.SD[which.max(PIP.prod),], by=c('Gene', 'Trait')]
@@ -209,24 +213,28 @@ df_show$clusters[is.na(df_show$clusters)] = ''
 folder = "microglia/eqtl/figures/"
 dir.create( folder, recursive=TRUE )
 
+df_show_ad = df_show[grep("lzh", df_show$Trait),]
+
+write.csv(df_show_ad, file="finemap_eQTL.csv", row.names=FALSE, quote=FALSE)
+
 # Write images to pdf
-# for( ensGene in unique(df_show$Gene) ){
-# 	message(ensGene)
+for( ensGene in unique(df_show_ad$Gene) ){
+	message(ensGene)
 
-# 	for(ord in df_show[Gene == ensGene,sort(unique(eQTL_order))] ){
+	for(ord in df_show_ad[Gene == ensGene,sort(unique(eQTL_order))] ){
 
-# 		file = paste0(ensGene, "_", ord, ".pdf")
-# 		file = paste0(folder, file)
-# 		# file = paste0("/sc/arion/projects/CommonMind/hoffman/MMQTL/figures/", file)		
-# 		ggsave(file, make_plot( ensGene, ord=ord, window=2e5 ), width=6 )
+		file = paste0(ensGene, "_", ord, ".pdf")
+		file = paste0(folder, file)
 
-# 		if( ord > 1 ){
-# 			file = paste0(ensGene, "_", ord, "_showConditional.pdf")
-# 			file = paste0("figures/", file)
-# 			ggsave(file, make_plot( ensGene, ord=ord, window=2e5, showConditional=TRUE ), width=6) 
-# 		}
-# 	}
-# } 
+		ggsave(file, make_plot( ensGene, ord=ord, window=2e5 ), width=6 )
+
+		if( ord > 1 ){
+			file = paste0(ensGene, "_", ord, "_showConditional.pdf")
+			file = paste0("figures/", file)
+			ggsave(file, make_plot( ensGene, ord=ord, window=2e5, showConditional=TRUE ), width=6) 
+		}
+	}
+} 
 
 
 
@@ -286,7 +294,7 @@ df_html = df_show %>%
 	mutate('GWAS prob' = format(FINEMAP, digits=3)) %>%
 	mutate('Shared prob' = format(prob.coloc, digits=3)) 
 
-setwd('~/work')
+# setwd('~/work')
 
 dir.create( paste0(folder, "../html/"), recursive=TRUE )
 
