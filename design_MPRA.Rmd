@@ -11,11 +11,14 @@ output: html_document
 cd /Users/gabrielhoffman/workspace/repos/mmQTL_plots
 # rm -rf combined_analysis/combine_all_EPHA1_cache
 
+cd /hpc/users/hoffmg01/work/mmQTL
+ml git
+git pull
 R
 
 rmarkdown::render("design_MPRA.Rmd")
 
-scp design_MPRA.html sklar1:/hpc/users/hoffmg01/www/software/MPRA
+# scp design_MPRA.html sklar1:/hpc/users/hoffmg01/www/software/MPRA
 
 
 --->
@@ -253,7 +256,8 @@ ggplot(df_stats, aes(abs(dTSS), group=x, color=x)) + geom_density() + scale_x_lo
 ```
 
 
-```{r storeResults, eval=FALSE}
+
+```{r storeResults}
 # Code
 CODE <- Folder(name = "Design of MPRA", parentId = 'syn25585302')
 CODE <- synStore(CODE)
@@ -273,8 +277,6 @@ sapply( names(idx.lst), function(n){
                      executed = thisFile, activityDescription = activityDescription)
 })
 ```
-
-
 
 
 
@@ -395,6 +397,11 @@ COV_OBJ = synapser::File(file.gz, name = file.gz, parentId = CODE$properties$id)
 COV_OBJ = synStore(COV_OBJ, used = ALL_USED_IDs, activityName = activityName, 
                  executed = thisFile, activityDescription = activityDescription)
 ```
+
+
+
+
+
 
 
 ### Source
