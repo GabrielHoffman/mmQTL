@@ -27,7 +27,7 @@ library(synapser)
 library(knit2synapse)
 synLogin()
 
-synDelete('syn25613250')
+# synDelete('syn25613257')
 
 
 # Run code and upload results to Synapse
@@ -342,7 +342,7 @@ COV_OBJ = synStore(COV_OBJ, used = ALL_USED_IDs, activityName = activityName,
 Within locus with high PP, select nearby variants that are not in candidate causal set.  There variants are 1) 300-1000 bp from the candidate causal variant with PIP > 0.99, 2) have p < 1e-8, 3) have PIP = 0.
 ```{r near.highPP}
 # select SNPs with high PIP
-df_high = df_one[PP > .99,]
+df_high = df_one[PP > .98,]
 
 # location of candidate causal variants
 gr_high = with(df_high, GRanges(Chr, IRanges(position_hg19, position_hg19, name=Variant)))
@@ -351,7 +351,11 @@ idx_gene = which(df_high$Gene %in% df_eqtl[,unique(Gene)])
 
 setkey(df_eqtl, "Gene")
 
-df_cat2 = lapply( idx_gene[1:10], function(i){
+# just primary eQTL
+df_eqtl_1 = df_eqtl[(eQTL_order==1),]
+setkey(df_eqtl_1, "Gene")
+
+df_cat2 = lapply( idx_gene, function(i){
   cat("\r", i, "   ")
 
   # For each strong candidate causal SNP, select another SNP that is 
@@ -360,21 +364,21 @@ df_cat2 = lapply( idx_gene[1:10], function(i){
   SNP = df_high[i,Variant]
 
   # get eQTL results for this gene
-  df = df_eqtl[(Gene == ensGene),][(eQTL_order==1),][order(position_hg19),]
+  df = df_eqtl_1[Gene == ensGene,][order(position_hg19),]
 
   # convert to GenomicRanges
   gr = with(df, GRanges(paste0('chr', chrom), IRanges(position_hg19, position_hg19, name=Variant, score=p_fixed)))
 
   # compute distance to target SNP
   d = distance(gr_high[i], gr)
-  idx = which((d > 300) &(d <1000 ))
+  idx = which((d > 300) &(d <1200 ))
 
   # get statistics for tnear by SNPs
   # drop variants that have non-zero PIP's
   df = data.table(Variant = names(gr[idx]), p.value = score(gr[idx]), distance = d[idx], target=SNP)
   df = merge(df, df_in, by="Variant", all.x=TRUE)
   df = df[order(p.value),][is.na(PP),]
-  df[(p.value < 1e-8),1:4]
+  df[(p.value < 1e-7),1:4]
 })
 df_cat2 = do.call(rbind, df_cat2)
 
