@@ -83,7 +83,7 @@ ALL_USED_IDs = c(ALL_USED_IDs, 'syn25592273')
 # ALL_USED_IDs = c(ALL_USED_IDs, 'syn25592272')
 
 # variant positions
-df_positions = fread(synGet('syn25592274')$path) # V2
+df_positions = fread(synGet('syn25955442')$path) # V2
 ALL_USED_IDs = c(ALL_USED_IDs, 'syn25592274')
 colnames(df_positions) = c("Variant", "chrom", "position_hg19", "REF", "ALT")
 
