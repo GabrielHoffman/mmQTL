@@ -15,6 +15,8 @@ R
 
 rmarkdown::render("design_MPRA.Rmd")
 
+scp design_MPRA.html sklar1:/hpc/users/hoffmg01/www/software/MPRA
+
 
 --->
  
@@ -53,7 +55,8 @@ knitr::opts_chunk$set(
   error = FALSE,
   tidy = FALSE,
   dev = c('png', 'pdf'),
-  cache = TRUE)
+  cache = TRUE,
+  cache.lazy = FALSE)
 ```
 
 
@@ -184,7 +187,7 @@ Here, variants are selected in proprotion to their posterior probability.
 With > 20-30K variants, most of the high-scoring variants are included, and the remaining available MPRA sequences are devoted to low-scoring variants.
 
 ```{r test, fig.width=5, fig.width=5}
-
+set.seed(1)
 n_array =  c(1:6)*10000
 idx.lst = lapply( n_array, function(n){
   sample.int(nrow(df_one), n, prob=df_one$PP)
@@ -272,15 +275,126 @@ sapply( names(idx.lst), function(n){
 ```
 
 
+
+
+
+# Select negative variants
+Common variants with high p-value (>0.3), high MAF (>0.2), *in* ATAC-seq peaks
+```{r load.filter.eqtl}
+# get SNPs with large p-values
+df_eqtl = fread(synGet('syn25592272')$path, select = c('Gene', 'Variant', 'eQTL_order', 'p_fixed', 'p_random'))
+setkey(df_eqtl, "Variant")
+
+# merge with position
+# only keep SNPs
+df_eqtl = merge(df_eqtl, df_positions[nchar(REF) == nchar(ALT),1:3], by="Variant")
+
+# get MAF for each variant
+df_maf = fread(synGet('syn25953082')$path)
+
+# merge with MAF
+df_eqtl = merge(df_eqtl, df_maf[MAF > 0.2,], by.x="Variant", by.y="SNP")
+
+# Select variants with large p-values
+df_eqtl_subset = df_eqtl[,.SD[which.min(p_fixed),],by="Variant"]
+df_eqtl_subset2 = df_eqtl_subset[(p_fixed > .1)&(p_random>.1),]
+```
+
+
+```{r Additional.filtering}
+# convert to GRanges
+gr_eqtl = with(df_eqtl_subset2, GRanges(paste0('chr', chrom), IRanges(position_hg19, position_hg19, name=Variant   )))
+gr_eqtl = unique(gr_eqtl)
+
+# identify SNPs in ATAC-seq peaks for each cell type
+res = lapply(names(gr.lst), function(cellType){
+
+  idx = overlapsAny( gr_eqtl, gr.lst[[cellType]])
+
+  data.table(Variant = names(gr_eqtl)[idx], Count = 1)
+})
+res = do.call(rbind, res)
+
+# count the number of cell types that have ATAC peaks over each SNP
+df_ATAC_negSNP = res[,data.table(Count_ATAC = sum(Count)), by="Variant"]
+
+hist(df_ATAC_negSNP$Count_ATAC)
+
+df_cat1 = merge(df_ATAC_negSNP[Count_ATAC > 2,], df_positions, by="Variant")
+df_cat1 = merge(df_cat1, df_maf[,c("SNP", "MAF")], by.x="Variant", by.y="SNP")
+
+file = "negative_control_variants_Type_1.tsv"
+write.table(df_cat1, file = file, sep = '\t', row.names=FALSE, quote=FALSE)
+file.gz = R.utils::gzip(file, overwrite=TRUE)
+
+# get Synapse info
+CODE <- Folder(name = "Design of MPRA", parentId = 'syn25585302')
+CODE <- synStore(CODE)
+
+# Upload file
+COV_OBJ = synapser::File(file.gz, name = file.gz, parentId = CODE$properties$id)
+COV_OBJ = synStore(COV_OBJ, used = ALL_USED_IDs, activityName = activityName, 
+                 executed = thisFile, activityDescription = activityDescription)
+```
+
+
+
+Within locus with high PP, select nearby variants that are not in candidate causal set.  There variants are 1) 300-1000 bp from the candidate causal variant with PIP > 0.99, 2) have p < 1e-8, 3) have PIP = 0.
+```{r near.highPP}
+# select SNPs with high PIP
+df_high = df_one[PP > .99,]
+
+# location of candidate causal variants
+gr_high = with(df_high, GRanges(Chr, IRanges(position_hg19, position_hg19, name=Variant)))
+
+idx_gene = which(df_high$Gene %in% df_eqtl[,unique(Gene)])
+
+setkey(df_eqtl, "Gene")
+
+df_cat2 = lapply( idx_gene[1:10], function(i){
+  cat("\r", i, "   ")
+
+  # For each strong candidate causal SNP, select another SNP that is 
+  # nearby, correlated, small p-value, in primary signal, but not estimated to be causal
+  ensGene = df_high[i,Gene]
+  SNP = df_high[i,Variant]
+
+  # get eQTL results for this gene
+  df = df_eqtl[(Gene == ensGene),][(eQTL_order==1),][order(position_hg19),]
+
+  # convert to GenomicRanges
+  gr = with(df, GRanges(paste0('chr', chrom), IRanges(position_hg19, position_hg19, name=Variant, score=p_fixed)))
+
+  # compute distance to target SNP
+  d = distance(gr_high[i], gr)
+  idx = which((d > 300) &(d <1000 ))
+
+  # get statistics for tnear by SNPs
+  # drop variants that have non-zero PIP's
+  df = data.table(Variant = names(gr[idx]), p.value = score(gr[idx]), distance = d[idx], target=SNP)
+  df = merge(df, df_in, by="Variant", all.x=TRUE)
+  df = df[order(p.value),][is.na(PP),]
+  df[(p.value < 1e-8),1:4]
+})
+df_cat2 = do.call(rbind, df_cat2)
+
+df_cat2 = merge(df_cat2, df_positions, by="Variant")
+df_cat2 = merge(df_cat2, df_maf[,c("SNP", "MAF")], by.x="Variant", by.y="SNP")
+
+
+file = "negative_control_variants_Type_2.tsv"
+write.table(df_cat2, file = file, sep = '\t', row.names=FALSE, quote=FALSE)
+file.gz = R.utils::gzip(file, overwrite=TRUE)
+
+# Upload file
+COV_OBJ = synapser::File(file.gz, name = file.gz, parentId = CODE$properties$id)
+COV_OBJ = synStore(COV_OBJ, used = ALL_USED_IDs, activityName = activityName, 
+                 executed = thisFile, activityDescription = activityDescription)
+```
+
+
 ### Source
 [markdown](`r thisFile`)
-
-
-# TODO 
-Biao is providing effect size.
-
-
-
 
 
 
