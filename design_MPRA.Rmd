@@ -194,7 +194,7 @@ With > 20-30K variants, most of the high-scoring variants are included, and the 
 
 ```{r test, fig.width=5, fig.width=5}
 set.seed(1)
-n_array =  sort(c(1:6, 2.1)*10000)
+n_array = c(1:6)*10000
 idx.lst = lapply( n_array, function(n){
   sample.int(nrow(df_one), n, prob=df_one$PP)
 })
