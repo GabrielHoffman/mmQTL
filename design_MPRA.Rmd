@@ -54,13 +54,16 @@ synLogin()
 knitr::opts_chunk$set(
   echo = FALSE,
   warning=FALSE,
-  message=TRUE,
+  message=FALSE,
   error = FALSE,
   tidy = FALSE,
   dev = c('png', 'pdf'),
   cache = TRUE,
   cache.lazy = FALSE)
 ```
+
+df1 = fread(synGet('syn25961123')$path)
+df2 = fread(synGet('syn25961118')$path)
 
 
 ```{r synapse.parameters, include=FALSE, cache=TRUE}
@@ -257,26 +260,6 @@ ggplot(df_stats, aes(abs(dTSS), group=x, color=x)) + geom_density() + scale_x_lo
 
 
 
-```{r storeResults}
-# Code
-CODE <- Folder(name = "Design of MPRA", parentId = 'syn25585302')
-CODE <- synStore(CODE)
-
-sapply( names(idx.lst), function(n){
-
-  file = paste0('MPRA_BREMA_variants_', n, '.tsv')
-
-  idx = idx.lst[[as.character(n)]] 
-  
-  write.table(df_one[idx,], file = file, sep = '\t', row.names=FALSE, quote=FALSE)
-  file.gz = R.utils::gzip(file, overwrite=TRUE)
-
-  # Upload file
-  COV_OBJ = synapser::File(file.gz, name = file.gz, parentId = CODE$properties$id)
-  COV_OBJ = synStore(COV_OBJ, used = ALL_USED_IDs, activityName = activityName, 
-                     executed = thisFile, activityDescription = activityDescription)
-})
-```
 
 
 
@@ -284,18 +267,18 @@ sapply( names(idx.lst), function(n){
 Common variants with high p-value (>0.3), high MAF (>0.2), *in* ATAC-seq peaks
 ```{r load.filter.eqtl}
 # get SNPs with large p-values
-df_eqtl = fread(synGet('syn25592272')$path, select = c('Gene', 'Variant', 'eQTL_order', 'p_fixed', 'p_random'))
+df_eqtl_all = fread(synGet('syn25961123')$path, select = c('Gene', 'Variant', 'eQTL_order', 'p_fixed', 'p_random', 'z_score_fixed', 'Non_assessed_allele', 'Assessed_allele'))
 setkey(df_eqtl, "Variant")
 
 # merge with position
 # only keep SNPs
-df_eqtl = merge(df_eqtl, df_positions[nchar(REF) == nchar(ALT),1:3], by="Variant")
+df_eqtl_all = merge(df_eqtl_all, df_positions[nchar(REF) == nchar(ALT),], by="Variant")
 
 # get MAF for each variant
 df_maf = fread(synGet('syn25953082')$path)
 
 # merge with MAF
-df_eqtl = merge(df_eqtl, df_maf[MAF > 0.2,], by.x="Variant", by.y="SNP")
+df_eqtl = merge(df_eqtl_all, df_maf[MAF > 0.2,], by.x="Variant", by.y="SNP")
 
 # Select variants with large p-values
 df_eqtl_subset = df_eqtl[,.SD[which.min(p_fixed),],by="Variant"]
@@ -401,6 +384,26 @@ COV_OBJ = synStore(COV_OBJ, used = ALL_USED_IDs, activityName = activityName,
 
 
 
+```{r storeResults}
+# Code
+CODE <- Folder(name = "Design of MPRA", parentId = 'syn25585302')
+CODE <- synStore(CODE)
+
+sapply( names(idx.lst), function(n){
+
+  file = paste0('MPRA_BREMA_variants_', n, '.tsv')
+
+  idx = idx.lst[[as.character(n)]] 
+  
+  write.table(df_one[idx,], file = file, sep = '\t', row.names=FALSE, quote=FALSE)
+  file.gz = R.utils::gzip(file, overwrite=TRUE)
+
+  # Upload file
+  COV_OBJ = synapser::File(file.gz, name = file.gz, parentId = CODE$properties$id)
+  COV_OBJ = synStore(COV_OBJ, used = ALL_USED_IDs, activityName = activityName, 
+                     executed = thisFile, activityDescription = activityDescription)
+})
+```
 
 
 
