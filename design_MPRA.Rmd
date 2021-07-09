@@ -392,7 +392,7 @@ COV_OBJ = synStore(COV_OBJ, used = ALL_USED_IDs, activityName = activityName,
 CODE <- Folder(name = "Design of MPRA", parentId = 'syn25585302')
 CODE <- synStore(CODE)
 
-df_one_annot = merge(df_one, df_eqtl_all[,c("Variant", "Gene", "HighAllele")], by=c("Variant", "Gene"))
+df_one_annot = merge(df_one, df_eqtl_all[eQTL_order==1,c("Variant", "Gene", "HighAllele")], by=c("Variant", "Gene"))
 
 sapply( names(idx.lst), function(n){
 
