@@ -94,7 +94,31 @@ ALL_USED_IDs = c(ALL_USED_IDs, 'syn25592274')
 colnames(df_positions) = c("Variant", "chrom", "position_hg19", "REF", "ALT")
 
 df = merge(df_in, df_positions, by='Variant')
+setkey(df, "Variant")
 ```
+
+```{r load.eqtl.info}
+# get SNPs with large p-values
+# z_score_fixed > 0 means Assessed_allele is more highly expressed
+df_eqtl_all = fread(synGet('syn25961123')$path, select = c('Gene', 'Variant', 'eQTL_order', 'p_fixed', 'p_random', 'z_score_fixed', 'Non_assessed_allele', 'Assessed_allele'))
+setkey(df_eqtl_all, "Variant")
+
+# merge with position
+# only keep SNPs
+df_eqtl_all = merge(df_eqtl_all, df_positions[nchar(REF) == nchar(ALT),], by="Variant")
+
+# If z_score_fixed > 0, then Assessed_allele is more highly expressed
+df_eqtl_all[,HighAllele := ifelse(z_score_fixed > 0, Assessed_allele, Non_assessed_allele) ]
+
+# get MAF for each variant
+df_maf = fread(synGet('syn25953082')$path)
+
+df_eqtl_all = merge(df_eqtl_all, df_maf[,c('SNP', 'MAF')], by.x="Variant", by.y="SNP")
+
+# merge with HighAllele and MAF
+df = merge(df, df_eqtl_all[,c("Variant", "Gene", "eQTL_order", "HighAllele", "MAF")], by=c("Variant", "Gene", "eQTL_order"))
+```
+
 
 ```{r ATACseq, message=FALSE}
 library(GenomicRanges)
@@ -262,30 +286,37 @@ ggplot(df_stats, aes(abs(dTSS), group=x, color=x)) + geom_density() + scale_x_lo
 
 
 
+```{r storeResults}
+# Code
+CODE <- Folder(name = "Design of MPRA", parentId = 'syn25585302')
+CODE <- synStore(CODE)
+
+sapply( names(idx.lst), function(n){
+
+  file = paste0('MPRA_BREMA_variants_', n, '.tsv')
+
+  idx = idx.lst[[as.character(n)]] 
+  
+  write.table(df_one[idx,], file = file, sep = '\t', row.names=FALSE, quote=FALSE)
+  file.gz = R.utils::gzip(file, overwrite=TRUE)
+
+  # Upload file
+  COV_OBJ = synapser::File(file.gz, name = file.gz, parentId = CODE$properties$id)
+  COV_OBJ = synStore(COV_OBJ, used = ALL_USED_IDs, activityName = activityName, 
+                     executed = thisFile, activityDescription = activityDescription)
+})
+```
+
+
+
+
 
 # Select negative variants
 Common variants with high p-value (>0.3), high MAF (>0.2), *in* ATAC-seq peaks
 ```{r load.filter.eqtl}
-# get SNPs with large p-values
-# z_score_fixed > 0 means Assessed_allele is more highly expressed
-df_eqtl_all = fread(synGet('syn25961123')$path, select = c('Gene', 'Variant', 'eQTL_order', 'p_fixed', 'p_random', 'z_score_fixed', 'Non_assessed_allele', 'Assessed_allele'))
-setkey(df_eqtl_all, "Variant")
 
-# merge with position
-# only keep SNPs
-df_eqtl_all = merge(df_eqtl_all, df_positions[nchar(REF) == nchar(ALT),], by="Variant")
-
-# If z_score_fixed > 0, then Assessed_allele is more highly expressed
-df_eqtl_all[,HighAllele := ifelse(z_score_fixed > 0, Assessed_allele, Non_assessed_allele) ]
-
-# get MAF for each variant
-df_maf = fread(synGet('syn25953082')$path)
-
-# merge with MAF
-df_eqtl = merge(df_eqtl_all, df_maf[MAF > 0.2,], by.x="Variant", by.y="SNP")
-
-# Select variants with large p-values
-df_eqtl_subset = df_eqtl[,.SD[which.min(p_fixed),],by="Variant"]
+# Select variants with large p-values and MAF
+df_eqtl_subset = df_eqtl_all[MAF > 0.2,.SD[which.min(p_fixed),],by="Variant"]
 df_eqtl_subset2 = df_eqtl_subset[(p_fixed > .1)&(p_random>.1),]
 ```
 
@@ -383,33 +414,6 @@ COV_OBJ = synapser::File(file.gz, name = file.gz, parentId = CODE$properties$id)
 COV_OBJ = synStore(COV_OBJ, used = ALL_USED_IDs, activityName = activityName, 
                  executed = thisFile, activityDescription = activityDescription)
 ```
-
-
-
-
-```{r storeResults}
-# Code
-CODE <- Folder(name = "Design of MPRA", parentId = 'syn25585302')
-CODE <- synStore(CODE)
-
-df_one_annot = merge(df_one, df_eqtl_all[eQTL_order==1,c("Variant", "Gene", "HighAllele")], by=c("Variant", "Gene"))
-
-sapply( names(idx.lst), function(n){
-
-  file = paste0('MPRA_BREMA_variants_', n, '.tsv')
-
-  idx = idx.lst[[as.character(n)]] 
-  
-  write.table(df_one_annot[idx,], file = file, sep = '\t', row.names=FALSE, quote=FALSE)
-  file.gz = R.utils::gzip(file, overwrite=TRUE)
-
-  # Upload file
-  COV_OBJ = synapser::File(file.gz, name = file.gz, parentId = CODE$properties$id)
-  COV_OBJ = synStore(COV_OBJ, used = ALL_USED_IDs, activityName = activityName, 
-                     executed = thisFile, activityDescription = activityDescription)
-})
-```
-
 
 
 ### Source
