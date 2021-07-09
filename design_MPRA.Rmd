@@ -392,7 +392,7 @@ COV_OBJ = synStore(COV_OBJ, used = ALL_USED_IDs, activityName = activityName,
 CODE <- Folder(name = "Design of MPRA", parentId = 'syn25585302')
 CODE <- synStore(CODE)
 
-df_one = merge(df_one, df_eqtl_all[,c("Variant", "Gene", "HighAllele")], by=c("Variant", "Gene"))
+df_one_annot = merge(df_one, df_eqtl_all[,c("Variant", "Gene", "HighAllele")], by=c("Variant", "Gene"))
 
 sapply( names(idx.lst), function(n){
 
@@ -400,7 +400,7 @@ sapply( names(idx.lst), function(n){
 
   idx = idx.lst[[as.character(n)]] 
   
-  write.table(df_one[idx,], file = file, sep = '\t', row.names=FALSE, quote=FALSE)
+  write.table(df_one_annot[idx,], file = file, sep = '\t', row.names=FALSE, quote=FALSE)
   file.gz = R.utils::gzip(file, overwrite=TRUE)
 
   # Upload file
