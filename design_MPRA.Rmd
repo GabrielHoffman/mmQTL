@@ -267,12 +267,16 @@ ggplot(df_stats, aes(abs(dTSS), group=x, color=x)) + geom_density() + scale_x_lo
 Common variants with high p-value (>0.3), high MAF (>0.2), *in* ATAC-seq peaks
 ```{r load.filter.eqtl}
 # get SNPs with large p-values
+# z_score_fixed > 0 means Assessed_allele is more highly expressed
 df_eqtl_all = fread(synGet('syn25961123')$path, select = c('Gene', 'Variant', 'eQTL_order', 'p_fixed', 'p_random', 'z_score_fixed', 'Non_assessed_allele', 'Assessed_allele'))
-setkey(df_eqtl, "Variant")
+setkey(df_eqtl_all, "Variant")
 
 # merge with position
 # only keep SNPs
 df_eqtl_all = merge(df_eqtl_all, df_positions[nchar(REF) == nchar(ALT),], by="Variant")
+
+# If z_score_fixed > 0, then Assessed_allele is more highly expressed
+df_eqtl_all[,HighAllele := ifelse(z_score_fixed > 0, Assessed_allele, Non_assessed_allele) ]
 
 # get MAF for each variant
 df_maf = fread(synGet('syn25953082')$path)
@@ -303,7 +307,7 @@ res = do.call(rbind, res)
 # count the number of cell types that have ATAC peaks over each SNP
 df_ATAC_negSNP = res[,data.table(Count_ATAC = sum(Count)), by="Variant"]
 
-hist(df_ATAC_negSNP$Count_ATAC)
+# hist(df_ATAC_negSNP$Count_ATAC)
 
 df_cat1 = merge(df_ATAC_negSNP[Count_ATAC > 2,], df_positions, by="Variant")
 df_cat1 = merge(df_cat1, df_maf[,c("SNP", "MAF")], by.x="Variant", by.y="SNP")
@@ -370,7 +374,6 @@ df_cat2 = do.call(rbind, df_cat2)
 df_cat2 = merge(df_cat2, df_positions, by="Variant")
 df_cat2 = merge(df_cat2, df_maf[,c("SNP", "MAF")], by.x="Variant", by.y="SNP")
 
-
 file = "negative_control_variants_Type_2.tsv"
 write.table(df_cat2, file = file, sep = '\t', row.names=FALSE, quote=FALSE)
 file.gz = R.utils::gzip(file, overwrite=TRUE)
@@ -388,6 +391,8 @@ COV_OBJ = synStore(COV_OBJ, used = ALL_USED_IDs, activityName = activityName,
 # Code
 CODE <- Folder(name = "Design of MPRA", parentId = 'syn25585302')
 CODE <- synStore(CODE)
+
+df_one = merge(df_one, df_eqtl_all[,c("Variant", "Gene", "HighAllele")], by=c("Variant", "Gene"))
 
 sapply( names(idx.lst), function(n){
 
