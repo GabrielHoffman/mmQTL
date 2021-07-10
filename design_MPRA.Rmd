@@ -367,12 +367,12 @@ df_high = df_one[PP > .98,]
 # location of candidate causal variants
 gr_high = with(df_high, GRanges(Chr, IRanges(position_hg19, position_hg19, name=Variant)))
 
-idx_gene = which(df_high$Gene %in% df_eqtl[,unique(Gene)])
+idx_gene = which(df_high$Gene %in% df_eqtl_all[,unique(Gene)])
 
-setkey(df_eqtl, "Gene")
+setkey(df_eqtl_all, "Gene")
 
 # just primary eQTL
-df_eqtl_1 = df_eqtl[(eQTL_order==1),]
+df_eqtl_1 = df_eqtl_all[(eQTL_order==1),]
 setkey(df_eqtl_1, "Gene")
 
 df_cat2 = lapply( idx_gene, function(i){
