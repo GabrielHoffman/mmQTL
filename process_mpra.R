@@ -2,13 +2,14 @@
 library(tidyverse)
 library(stringr)
 library(gtools)
+library(synapser)
+
+synLogin()
+
+# cd /sc/arion/projects/CommonMind/mpras/Ahituv_July_2022
 
 # sum the number of Barcode, observing the same barcode multiple times doesn't contribute to the count
-
-folder_mpra = "/sc/arion/projects/CommonMind/leed62/fine_mapping_SMI_MPRA/MPRA_results/"
-# read in data
-file = paste0(folder_mpra, "fine_mapping_final_labeled_counts.tsv")
-df = read_tsv(file)
+df = read_tsv(synGet('syn34566852')$path)
 colnames(df)[4:9] = c('DNA1', 'DNA2', "DNA3", "RNA1", "RNA2", "RNA3")
 
 # For each label, sum the number of barcodes observed 
@@ -28,6 +29,13 @@ df2 = df %>%
 # get two control categories
 df_controls_c1 = df2 %>% filter(grepl("^c1", label))
 df_controls_c2 = df2 %>% filter(grepl("^c2", label))
+
+# write controls files
+file = paste0("mpra_controls1.tsv")
+write.table(df_controls_c1, file, quote=FALSE, row.names=FALSE)
+
+file = paste0("mpra_controls2.tsv")
+write.table(df_controls_c2, file, quote=FALSE, row.names=FALSE)
 
 # get negative sequences
 df_sub_n = df2 %>% filter(grepl("^n", label))
@@ -64,7 +72,7 @@ df_match = merge(df_merge %>%
 			by = "label2",
 			suffixes = c('.ref', '.alt'))
 
-file = paste0(folder_mpra, "mpra_matched_refalt.tsv")
+file = paste0("mpra_matched_refalt.tsv")
 write.table(df_match, file, quote=FALSE, row.names=FALSE)
 
 
