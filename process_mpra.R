@@ -32,10 +32,10 @@ df_controls_c2 = df2 %>% filter(grepl("^c2", label))
 
 # write controls files
 file = paste0("mpra_controls1.tsv")
-write.table(df_controls_c1, file, quote=FALSE, row.names=FALSE)
+write.table(df_controls_c1, file, quote=FALSE, row.names=FALSE, sep="\t")
 
 file = paste0("mpra_controls2.tsv")
-write.table(df_controls_c2, file, quote=FALSE, row.names=FALSE)
+write.table(df_controls_c2, file, quote=FALSE, row.names=FALSE, sep="\t")
 
 # get negative sequences
 df_sub_n = df2 %>% filter(grepl("^n", label))
@@ -73,7 +73,7 @@ df_match = merge(df_merge %>%
 			suffixes = c('.ref', '.alt'))
 
 file = paste0("mpra_matched_refalt.tsv")
-write.table(df_match, file, quote=FALSE, row.names=FALSE)
+write.table(df_match, file, quote=FALSE, row.names=FALSE, sep='\t')
 
 
 
